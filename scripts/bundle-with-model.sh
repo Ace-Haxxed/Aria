@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Package Jarvis together with an AI model, for machines that have no internet.
+# Package ARIA together with an AI model, for machines that have no internet.
 #
 # The normal installer is small and downloads the model on first launch. That
 # is the wrong shape for an air-gapped machine, a workshop with no wifi, or
@@ -15,7 +15,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODELS_DIR="$HOME/.jarvis/models"
+# Mirrors util::data_dir() in the Rust backend: a machine that already has
+# ~/.jarvis keeps using it, because that is where the downloaded weights are.
+if [ -d "$HOME/.aria" ] || [ ! -d "$HOME/.jarvis" ]; then
+  ARIA_HOME="$HOME/.aria"
+else
+  ARIA_HOME="$HOME/.jarvis"
+fi
+MODELS_DIR="$ARIA_HOME/models"
 BUILD_DIR="$ROOT/target/bundle"
 
 # Kept in step with src-tauri/src/commands/models.rs. Each line is:
@@ -81,7 +88,7 @@ npm run build >/dev/null
 say "Building the release binary (this takes a while)"
 cd "$ROOT/src-tauri"
 cargo build --release
-BINARY="$ROOT/src-tauri/target/release/jarvis"
+BINARY="$ROOT/src-tauri/target/release/aria"
 [ -f "$BINARY" ] || die "The build did not produce $BINARY"
 
 # ── Model ────────────────────────────────────────────────────────────
@@ -137,13 +144,13 @@ fi
 
 # ── Assemble ─────────────────────────────────────────────────────────
 
-STAGE="$BUILD_DIR/jarvis-bundle"
+STAGE="$BUILD_DIR/aria-bundle"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/models" "$STAGE/scripts"
 
 say "Assembling the bundle"
-cp "$BINARY" "$STAGE/jarvis"
-chmod +x "$STAGE/jarvis"
+cp "$BINARY" "$STAGE/aria"
+chmod +x "$STAGE/aria"
 cp "$MODEL_PATH" "$STAGE/models/$MODEL_ID.gguf"
 cp "$TOKENIZER_PATH" "$STAGE/models/$MODEL_ID.tokenizer.json"
 
@@ -153,7 +160,7 @@ cp "$TOKENIZER_PATH" "$STAGE/models/$MODEL_ID.tokenizer.json"
 cat > "$STAGE/install-bundle.sh" <<'INSTALLER'
 #!/usr/bin/env bash
 #
-# Install Jarvis and its model from this bundle. No internet needed.
+# Install ARIA and its model from this bundle. No internet needed.
 #
 set -euo pipefail
 
@@ -167,7 +174,14 @@ case "$(uname -s)" in
   *) die "This installer supports Linux and macOS." ;;
 esac
 
-MODELS_DIR="$HOME/.jarvis/models"
+# Mirrors util::data_dir() in the Rust backend: a machine that already has
+# ~/.jarvis keeps using it, because that is where the downloaded weights are.
+if [ -d "$HOME/.aria" ] || [ ! -d "$HOME/.jarvis" ]; then
+  ARIA_HOME="$HOME/.aria"
+else
+  ARIA_HOME="$HOME/.jarvis"
+fi
+MODELS_DIR="$ARIA_HOME/models"
 mkdir -p "$BIN_DIR" "$MODELS_DIR"
 
 say "Installing the model to $MODELS_DIR"
@@ -182,25 +196,25 @@ for file in "$HERE"/models/*; do
 done
 
 if [ -d "$HERE/scripts" ] && [ -n "$(ls -A "$HERE/scripts" 2>/dev/null)" ]; then
-  mkdir -p "$HOME/.jarvis/scripts"
-  cp "$HERE"/scripts/* "$HOME/.jarvis/scripts/"
+  mkdir -p "$ARIA_HOME/scripts"
+  cp "$HERE"/scripts/* "$ARIA_HOME/scripts/"
 fi
 
-say "Installing Jarvis to $BIN_DIR"
-cp "$HERE/jarvis" "$BIN_DIR/jarvis"
-chmod +x "$BIN_DIR/jarvis"
+say "Installing ARIA to $BIN_DIR"
+cp "$HERE/aria" "$BIN_DIR/aria"
+chmod +x "$BIN_DIR/aria"
 
 # A desktop entry, so it appears in the applications menu rather than only
 # being runnable from a terminal.
 if [ "$(uname -s)" = "Linux" ]; then
   APPS="$HOME/.local/share/applications"
   mkdir -p "$APPS"
-  cat > "$APPS/jarvis.desktop" <<DESKTOP
+  cat > "$APPS/aria.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Jarvis
+Name=ARIA
 Comment=AI assistant that runs on this machine
-Exec=$BIN_DIR/jarvis
+Exec=$BIN_DIR/aria
 Terminal=false
 Categories=Utility;
 DESKTOP
@@ -210,8 +224,8 @@ fi
 echo
 say "Done."
 case ":$PATH:" in
-  *":$BIN_DIR:"*) say "Run it with: jarvis" ;;
-  *) say "Run it with: $BIN_DIR/jarvis"
+  *":$BIN_DIR:"*) say "Run it with: aria" ;;
+  *) say "Run it with: $BIN_DIR/aria"
      say "(add $BIN_DIR to your PATH to run it by name)" ;;
 esac
 say "It works offline — the model is already installed."
@@ -219,10 +233,10 @@ INSTALLER
 chmod +x "$STAGE/install-bundle.sh"
 
 cat > "$STAGE/README.txt" <<READMETXT
-Jarvis — offline bundle
+ARIA — offline bundle
 =======================
 
-This archive contains Jarvis and an AI model, so it works with no internet.
+This archive contains ARIA and an AI model, so it works with no internet.
 
   Model:    $MODEL_ID
   Platform: $PLATFORM ($(uname -m))
@@ -231,27 +245,27 @@ To install:
 
   ./install-bundle.sh
 
-That copies the model to ~/.jarvis/models and the binary to ~/.local/bin.
+That copies the model into ARIA's data directory and the binary to ~/.local/bin.
 Nothing is downloaded and nothing needs an account.
 
 Requirements on the target machine:
   - Linux: webkit2gtk 4.1, gtk3
   - macOS: 12 or newer
 
-Jarvis works entirely offline with this model. Adding a cloud API key later is
+ARIA works entirely offline with this model. Adding a cloud API key later is
 optional, in Settings, and never required.
 READMETXT
 
 # ── Archive ──────────────────────────────────────────────────────────
 
 STAMP="$(date +%Y%m%d)"
-ARCHIVE="$BUILD_DIR/jarvis-bundle-$MODEL_ID-$PLATFORM-$(uname -m)-$STAMP.tar.gz"
+ARCHIVE="$BUILD_DIR/aria-bundle-$MODEL_ID-$PLATFORM-$(uname -m)-$STAMP.tar.gz"
 
 say "Compressing (this takes a few minutes)"
 # The model is already compressed, so -1 saves considerable time for a
 # negligible difference in size.
-tar -C "$BUILD_DIR" -czf "$ARCHIVE" --options='compression-level=1' jarvis-bundle 2>/dev/null \
-  || GZIP=-1 tar -C "$BUILD_DIR" -czf "$ARCHIVE" jarvis-bundle
+tar -C "$BUILD_DIR" -czf "$ARCHIVE" --options='compression-level=1' aria-bundle 2>/dev/null \
+  || GZIP=-1 tar -C "$BUILD_DIR" -czf "$ARCHIVE" aria-bundle
 
 rm -rf "$STAGE"
 
@@ -262,4 +276,4 @@ echo "     $(du -h "$ARCHIVE" | cut -f1)"
 echo
 say "To share it:"
 echo "     tar -xzf $(basename "$ARCHIVE")"
-echo "     cd jarvis-bundle && ./install-bundle.sh"
+echo "     cd aria-bundle && ./install-bundle.sh"

@@ -76,7 +76,7 @@ if [ "$SESSION" = "wayland" ]; then
   if [ ! -e /dev/uinput ] || ! [ -r /dev/uinput ]; then
     say "Granting access to /dev/uinput"
     echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' \
-      | sudo tee /etc/udev/rules.d/80-jarvis-uinput.rules >/dev/null
+      | sudo tee /etc/udev/rules.d/80-aria-uinput.rules >/dev/null
     sudo usermod -aG input "$USER"
     sudo udevadm control --reload-rules && sudo udevadm trigger
     warn "log out and back in for the 'input' group to take effect"

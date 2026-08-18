@@ -4,7 +4,7 @@
 # text-to-speech, plus their models.
 #
 # These are not bundled in the installer — they add ~140 MB, and anyone using a
-# cloud backend never needs them. Jarvis resolves whatever this script installs
+# cloud backend never needs them. ARIA resolves whatever this script installs
 # at runtime and falls back to the OS engines when it is absent.
 #
 # Usage: bash scripts/download-models.sh [--stt-only] [--tts-only] [--model base]
@@ -41,12 +41,12 @@ case "$(uname -s)" in
   *) DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}" ;;
 esac
 
-JARVIS_DIR="$DATA_DIR/jarvis"
-MODELS_DIR="$JARVIS_DIR/models"
-BIN_DIR="$JARVIS_DIR/bin"
+ARIA_DIR="$DATA_DIR/aria"
+MODELS_DIR="$ARIA_DIR/models"
+BIN_DIR="$ARIA_DIR/bin"
 
 mkdir -p "$MODELS_DIR" "$BIN_DIR"
-say "Installing into ${BOLD}${JARVIS_DIR}${RESET}"
+say "Installing into ${BOLD}${ARIA_DIR}${RESET}"
 
 command -v curl >/dev/null 2>&1 || die "curl is required"
 
@@ -123,7 +123,7 @@ if [ "$WANT_STT" -eq 1 ]; then
               break
             fi
           done
-        } || warn "whisper.cpp build failed — Jarvis will use the browser recogniser instead"
+        } || warn "whisper.cpp build failed — ARIA will use the browser recogniser instead"
       else
         warn "could not clone whisper.cpp"
       fi
@@ -161,7 +161,7 @@ if [ "$WANT_TTS" -eq 1 ]; then
     esac
 
     if [ -z "$PIPER_ASSET" ]; then
-      warn "no piper build for $OS/$ARCH — Jarvis will use your system voice"
+      warn "no piper build for $OS/$ARCH — ARIA will use your system voice"
     else
       ARCHIVE="$BIN_DIR/$PIPER_ASSET"
       PIPER_URL="https://github.com/rhasspy/piper/releases/download/${PIPER_VERSION}/${PIPER_ASSET}"
@@ -200,4 +200,4 @@ for f in "$MODELS_DIR"/* "$BIN_DIR"/*; do
   printf '  %-42s %s\n' "$(basename "$f")" "$(du -h "$f" 2>/dev/null | cut -f1)"
 done
 
-printf '\n%sRestart Jarvis, then check Settings → Voice.%s\n' "$DIM" "$RESET"
+printf '\n%sRestart ARIA, then check Settings → Voice.%s\n' "$DIM" "$RESET"

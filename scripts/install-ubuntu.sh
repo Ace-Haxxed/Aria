@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install everything Jarvis needs on Ubuntu / Debian / Pop!_OS / Mint.
+# Install everything ARIA needs on Ubuntu / Debian / Pop!_OS / Mint.
 #
 # Usage: bash scripts/install-ubuntu.sh [--no-optional] [--build]
 
@@ -100,7 +100,7 @@ if [ "$SESSION" = "wayland" ] && command -v ydotool >/dev/null 2>&1; then
     || warn "start ydotoold manually before using mouse/keyboard control"
 
   echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' \
-    | sudo tee /etc/udev/rules.d/80-jarvis-uinput.rules >/dev/null
+    | sudo tee /etc/udev/rules.d/80-aria-uinput.rules >/dev/null
   sudo usermod -aG input "$USER"
   sudo udevadm control --reload-rules && sudo udevadm trigger
   warn "log out and back in for the 'input' group to take effect"
@@ -118,12 +118,12 @@ if [ -f "$REPO_ROOT/package.json" ]; then
   ok "npm dependencies installed"
 
   if [ "$DO_BUILD" -eq 1 ]; then
-    say "Building Jarvis"
+    say "Building ARIA"
     (cd "$REPO_ROOT" && npm run desktop:build)
     ok "bundles are in src-tauri/target/release/bundle/"
   fi
 fi
 
-printf '\n%s%sJarvis is ready.%s\n' "$GREEN" "$BOLD" "$RESET"
+printf '\n%s%sARIA is ready.%s\n' "$GREEN" "$BOLD" "$RESET"
 printf '  %sStart it with:%s npm run desktop:dev\n' "$DIM" "$RESET"
 printf '  %sOffline voice:%s bash scripts/download-models.sh\n' "$DIM" "$RESET"

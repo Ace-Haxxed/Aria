@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install everything Jarvis needs on Fedora / RHEL / Rocky / Alma.
+# Install everything ARIA needs on Fedora / RHEL / Rocky / Alma.
 #
 # Usage: bash scripts/install-fedora.sh [--no-optional] [--build]
 
@@ -98,12 +98,12 @@ if [ -f "$REPO_ROOT/package.json" ]; then
   ok "npm dependencies installed"
 
   if [ "$DO_BUILD" -eq 1 ]; then
-    say "Building Jarvis"
+    say "Building ARIA"
     (cd "$REPO_ROOT" && npm run desktop:build)
     ok "bundles are in src-tauri/target/release/bundle/"
   fi
 fi
 
-printf '\n%s%sJarvis is ready.%s\n' "$GREEN" "$BOLD" "$RESET"
+printf '\n%s%sARIA is ready.%s\n' "$GREEN" "$BOLD" "$RESET"
 printf '  %sStart it with:%s npm run desktop:dev\n' "$DIM" "$RESET"
 printf '  %sOffline voice:%s bash scripts/download-models.sh\n' "$DIM" "$RESET"
