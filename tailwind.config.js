@@ -54,19 +54,25 @@ export default {
           medium: 'hsl(var(--risk-medium))',
           high: 'hsl(var(--risk-high))',
         },
+        // Semantic status colours. `text-danger` and `text-success` were used
+        // in components long before these existed, and rendered unstyled —
+        // Tailwind silently drops a class it cannot resolve.
+        success: 'hsl(var(--success))',
+        danger: 'hsl(var(--danger))',
+        'accent-purple': 'hsl(var(--accent-purple))',
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
-      // Both families are bundled via @fontsource and imported in main.tsx —
-      // naming a font here that is not shipped means the app silently falls
-      // back to whatever the system happens to have.
+      // Resolved through the CSS variables so the font stack is defined in
+      // exactly one place — globals.css — rather than drifting between here
+      // and the stylesheet, which is how Orbitron ended up named but unloaded.
       fontFamily: {
-        display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        display: ['var(--font-display)'],
+        sans: ['var(--font-body)'],
+        mono: ['var(--font-mono)'],
       },
       keyframes: {
         'accordion-down': {

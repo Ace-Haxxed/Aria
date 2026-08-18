@@ -13,6 +13,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Step {
   label: string;
@@ -53,6 +55,7 @@ function useTyped(text: string, totalMs = 220): string {
 
 function TypedLine({ label, result }: { label: string; result: string }) {
   const typed = useTyped(result);
+  const missing = result === 'unavailable' || result === 'no key';
 
   return (
     <motion.div
@@ -66,10 +69,31 @@ function TypedLine({ label, result }: { label: string; result: string }) {
         className="flex-1 self-center border-b border-dashed opacity-30"
         style={{ borderColor: 'var(--hud-edge-bright)' }}
       />
-      <span className={result === 'unavailable' ? 'text-risk-medium' : 'text-primary'}>
+      <span
+        className={cn(
+          'flex items-center gap-1.5',
+          missing ? 'text-risk-medium' : 'text-primary',
+        )}
+      >
         {typed}
+        {typed === result && (
+          <Check className={cn('h-3 w-3 shrink-0', missing ? 'text-risk-medium' : 'text-success')} />
+        )}
       </span>
     </motion.div>
+  );
+}
+
+/** The wordmark, one character at a time. */
+function TypedBrand() {
+  const typed = useTyped('ARIA', 320);
+  return (
+    <span style={{ textShadow: '0 0 18px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6)' }}>
+      {typed}
+      {/* Reserves the full width from the first frame, so the following lines
+          do not shift sideways as the letters land. */}
+      <span className="invisible">{'ARIA'.slice(typed.length)}</span>
+    </span>
   );
 }
 
@@ -109,6 +133,22 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
         },
       },
       {
+        label: 'speech',
+        run: async () => {
+          const { isTauri } = await import('@/platform');
+          if (!isTauri) return 'browser';
+          const { desktop } = await import('@/platform/desktop');
+          const stt = await desktop.sttStatus();
+          // The three states the Voice tab distinguishes, named the same way
+          // here so the boot line and that page never disagree.
+          return stt.method === 'offline'
+            ? 'whisper.cpp'
+            : stt.method === 'api'
+              ? 'openai whisper'
+              : 'unavailable';
+        },
+      },
+      {
         label: 'display',
         run: async () => {
           const { isTauri } = await import('@/platform');
@@ -123,9 +163,12 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
         run: async () => {
           // The key config is what the next message will actually use.
           const { useKeys, PROVIDER_LABEL } = await import('@/store/keys');
-          const { activeProvider, ready } = useKeys.getState();
+          const { activeProvider, model, ready } = useKeys.getState();
           if (!ready()) return 'no key';
-          return PROVIDER_LABEL[activeProvider].toLowerCase();
+          const label = PROVIDER_LABEL[activeProvider].toLowerCase();
+          // The model id is the half that actually varies between launches.
+          const short = model.split('/').pop()?.replace(':free', '') ?? '';
+          return short ? `${label} · ${short}`.slice(0, 30) : label;
         },
       },
     ];
@@ -195,14 +238,9 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
           />
 
           <div className="relative w-full max-w-sm px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.15 }}
-              className="hud-brand mb-6 text-center text-lg tracking-[0.34em] text-primary"
-            >
-              ARIA
-            </motion.div>
+            <div className="mb-6 text-center font-mono text-lg tracking-[0.34em] text-primary">
+              <TypedBrand />
+            </div>
 
             <div className="space-y-1.5 font-mono text-[11px]">
               {lines.map((line) => (

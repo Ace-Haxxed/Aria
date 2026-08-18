@@ -7,9 +7,12 @@
  * any platform. The backend streams `mic-chunk` and `mic-level` events for the
  * meter and hands back the finished WAV from `stop_capture`.
  *
- * Mobile hands off to the OS speech recogniser. Both fall back to the browser's
- * own SpeechRecognition when the preferred engine is unavailable, so voice
- * always does *something*.
+ * Mobile hands off to the OS speech recogniser, which does exist there.
+ *
+ * There is no browser `SpeechRecognition` fallback on either platform: the
+ * webview Linux builds run in does not implement it, so that branch never once
+ * executed and only turned a missing engine into silence. Transcription is
+ * whisper.cpp locally, then the user's own OpenAI key, then a clear error.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isMobile, isTauri } from '@/platform';
@@ -21,6 +24,15 @@ const SAMPLE_RATE = 16_000;
 
 /** Number of bars the waveform visualiser draws. */
 const SPECTRUM_BARS = 24;
+
+/**
+ * Ceiling on a hands-free take.
+ *
+ * Silence detection normally ends it within a second of the user finishing.
+ * This is the backstop for a room that never goes quiet — a fan, a television
+ * — where the wake word would otherwise leave the microphone open forever.
+ */
+const HANDS_FREE_MAX_MS = 15_000;
 
 export interface VoiceState {
   listening: boolean;
@@ -80,28 +92,6 @@ function bars(samples: Float32Array): number[] {
   return out;
 }
 
-/* ── Browser SpeechRecognition typings ───────────────────────────── */
-
-interface SpeechRecognitionLike {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-}
-
-function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
-  const w = window as unknown as {
-    SpeechRecognition?: new () => SpeechRecognitionLike;
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
 export function useVoice(onTranscript: (text: string) => void) {
   const [state, setState] = useState<VoiceState>({
     listening: false,
@@ -115,13 +105,19 @@ export function useVoice(onTranscript: (text: string) => void) {
   const contextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number | null>(null);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   /** Teardown for the Rust capture event listeners, set while recording. */
   const micListenersRef = useRef<Array<() => void>>([]);
   /** `stopListening` is defined below; the silence handler reaches it here. */
   const stopListeningRef = useRef<() => Promise<void>>(async () => {});
+  /**
+   * Set while this take was started by the wake word rather than by the mic
+   * button. Nothing will release a button to end it, so silence has to.
+   */
+  const handsFreeRef = useRef(false);
+  /** Backstop timer for a hands-free take, cleared when it stops. */
+  const handsFreeTimerRef = useRef<number | null>(null);
 
   // Keep the callback fresh without re-creating start/stop on every render.
   useEffect(() => {
@@ -251,7 +247,11 @@ export function useVoice(onTranscript: (text: string) => void) {
         // the answer starts the moment they finish, instead of when they
         // remember to release the button.
         const offSilence = await listen('mic-silence', () => {
-          if (useSettings.getState().settings.voice.autoStopOnSilence) {
+          // A hands-free take always stops on silence. The setting governs
+          // push-to-talk, where the button is the user's own way of ending it;
+          // applying it here would let a wake word start a recording that
+          // never finishes and never reaches the model.
+          if (handsFreeRef.current || useSettings.getState().settings.voice.autoStopOnSilence) {
             void stopListeningRef.current();
           }
         });
@@ -277,51 +277,33 @@ export function useVoice(onTranscript: (text: string) => void) {
       }
     }
 
-    // Fallback: the browser's own recogniser.
-    const Recognition = getSpeechRecognition();
-    if (!Recognition) {
-      setState((s) => ({
-        ...s,
-        supported: false,
-        error:
-          'No speech recognition is available. Install the whisper sidecar with ' +
-          '`bash scripts/download-models.sh`, or type instead.',
-      }));
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognitionRef.current = recognition;
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event) => {
-      const text = event.results?.[0]?.[0]?.transcript;
-      if (text) onTranscriptRef.current(text);
-    };
-    recognition.onerror = (event) => {
-      setState((s) => ({ ...s, listening: false, error: `Speech error: ${event.error}` }));
-      useConversation.getState().setAgentState('idle');
-    };
-    recognition.onend = () => {
-      setState((s) => ({ ...s, listening: false }));
-      useConversation.getState().setAgentState('idle');
-    };
-
-    recognition.start();
-    setState((s) => ({ ...s, listening: true }));
-    useConversation.getState().setAgentState('listening');
+    // There is no browser fallback. WebKitGTK — the webview every Linux build
+    // runs in — does not implement `SpeechRecognition`, so the path that used
+    // to live here never once executed on this platform; it only turned a
+    // missing engine into silence. Capture goes through Rust or not at all.
+    setState((s) => ({
+      ...s,
+      supported: false,
+      error:
+        'Speech-to-text is not set up. Open Settings → Voice to install the offline ' +
+        'engine, or add an OpenAI key to use hosted Whisper.',
+    }));
   }, [state.listening, runMeter]);
 
-  const stopListening = useCallback(async () => {
-    if (!state.listening) return;
-
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-      return;
+  /** Forget that this take was hands-free, and cancel its backstop timer. */
+  const clearHandsFree = useCallback(() => {
+    handsFreeRef.current = false;
+    if (handsFreeTimerRef.current != null) {
+      clearTimeout(handsFreeTimerRef.current);
+      handsFreeTimerRef.current = null;
     }
+  }, []);
+
+  const stopListening = useCallback(async () => {
+    // Cleared before the guard: a take that failed to start still armed the
+    // timer, and leaving it running would stop the *next* one early.
+    clearHandsFree();
+    if (!state.listening) return;
 
     if (isMobile) {
       const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
@@ -364,7 +346,7 @@ export function useVoice(onTranscript: (text: string) => void) {
       }));
       useConversation.getState().setAgentState('idle');
     }
-  }, [state.listening, teardownRecording]);
+  }, [state.listening, teardownRecording, clearHandsFree]);
 
   useEffect(() => {
     stopListeningRef.current = stopListening;
@@ -373,6 +355,27 @@ export function useVoice(onTranscript: (text: string) => void) {
   const toggleListening = useCallback(() => {
     void (state.listening ? stopListening() : startListening());
   }, [state.listening, startListening, stopListening]);
+
+  /**
+   * Listen for one utterance and end it without being told to.
+   *
+   * This is the wake-word path. Push-to-talk ends when the button comes up;
+   * a wake word has no matching gesture, so the take is ended by the silence
+   * that follows the user's request — or, failing that, by a hard ceiling.
+   */
+  const listenOnce = useCallback(async () => {
+    clearHandsFree();
+    handsFreeRef.current = true;
+
+    await startListening();
+
+    // Armed even if the device failed to open: `stopListening` no-ops when
+    // nothing is recording, and the timer is what clears the hands-free flag.
+    handsFreeTimerRef.current = window.setTimeout(() => {
+      handsFreeTimerRef.current = null;
+      void stopListeningRef.current();
+    }, HANDS_FREE_MAX_MS);
+  }, [startListening, clearHandsFree]);
 
   /* ── Speaking ── */
 
@@ -614,9 +617,9 @@ export function useVoice(onTranscript: (text: string) => void) {
 
   useEffect(
     () => () => {
+      clearHandsFree();
       teardownRecording();
       teardownPlaybackGraph();
-      recognitionRef.current?.abort();
       audioRef.current?.pause();
       // Unmounting mid-recording must release the device, or the next session
       // finds the microphone already held.
@@ -626,7 +629,7 @@ export function useVoice(onTranscript: (text: string) => void) {
           .catch(() => {});
       }
     },
-    [teardownRecording, teardownPlaybackGraph],
+    [teardownRecording, teardownPlaybackGraph, clearHandsFree],
   );
 
   return {
@@ -634,6 +637,7 @@ export function useVoice(onTranscript: (text: string) => void) {
     startListening,
     stopListening,
     toggleListening,
+    listenOnce,
     speak,
     speakSentence,
     stopSpeaking,

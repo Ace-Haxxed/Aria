@@ -91,15 +91,19 @@ function playActivationChime() {
 export interface WakeWordState {
   active: boolean;
   error: string | null;
-  /** False until the user has recorded a template for this word. */
-  trained: boolean;
+  /**
+   * Whether a template exists for this word. `null` until the listener has
+   * been asked — distinguishing "not trained" from "not yet known" is what
+   * keeps a warning from flashing up on every launch before the answer lands.
+   */
+  trained: boolean | null;
 }
 
 export function useWakeWord(onWake: () => void) {
   const [state, setState] = useState<WakeWordState>({
     active: false,
     error: null,
-    trained: false,
+    trained: null,
   });
   const recognitionRef = useRef<RecognitionLike | null>(null);
   const onWakeRef = useRef(onWake);
@@ -135,12 +139,12 @@ export function useWakeWord(onWake: () => void) {
       const { desktop } = await import('@/platform/desktop');
 
       const status = await desktop.wakeWordStatus(wakeWord);
-      setState((s) => ({ ...s, trained: status.trained }));
 
-      // Without a recorded template there is nothing to match against; the
-      // Settings panel prompts for one rather than failing here.
+      // Without a recorded template there is nothing to match against. This is
+      // not an error — nothing is broken — but it is silent, and the caller has
+      // to be able to tell the user why saying the wake word does nothing.
       if (!status.trained) {
-        setState((s) => ({ ...s, active: false, error: null }));
+        setState({ active: false, error: null, trained: false });
         return;
       }
 
@@ -257,6 +261,12 @@ export function useWakeWord(onWake: () => void) {
     active: state.active,
     error: state.error,
     trained: state.trained,
+    /**
+     * Switched on, but there is no voice sample to match against — so it is
+     * listening for nothing. The distinction matters: this is the one failure
+     * mode with no symptom at all.
+     */
+    needsTraining: enabled && state.trained === false && !state.error,
     start: isTauri ? startNative : startBrowser,
     stop: isTauri ? stopNative : stopBrowser,
   };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { AgentState } from '@/core/types';
 import { Minus, Settings as SettingsIcon, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { STATE_LABEL } from '@/components/shared/Orb';
@@ -44,59 +45,38 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
 
   return (
     <header
-      className="drag-region relative flex h-14 shrink-0 items-center justify-between
-        border-b border-[var(--hud-edge)] bg-card/30 px-4 backdrop-blur"
+      className="drag-region relative flex h-12 shrink-0 items-center justify-between px-4"
+      style={{
+        background: 'hsl(var(--background) / 0.9)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}
     >
-      {/* A hairline of accent along the bottom edge, brightest at the centre. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-px opacity-60"
-        style={{
-          background:
-            'linear-gradient(90deg, transparent, hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5), transparent)',
-        }}
-      />
-
-      {/* Left: the mark and the name. */}
-      <div className="flex flex-1 items-center gap-3">
+      {/* Left: the mark and the wordmark. Nothing else — the tagline used to
+          live here and only competed with the clock for attention. */}
+      <div className="flex flex-1 items-center gap-2.5">
         <Emblem state={agentState} />
-        <div className="leading-none">
-          <div className="hud-brand text-[13px] tracking-[0.2em] text-primary">ARIA</div>
-          <div className="hud-label mt-1 text-[8.5px] tracking-[0.18em]">
-            Adaptive Reasoning and Intelligence Assistant
-          </div>
-        </div>
+        <span className="text-[13px] font-semibold uppercase tracking-[0.3em] text-foreground">
+          ARIA
+        </span>
       </div>
 
       {/* Centre: the clock. The one readout that is true regardless of state. */}
       <div className="hidden flex-none text-center leading-none sm:block">
-        <div className="font-mono text-sm tracking-[0.12em] text-foreground">{clock.time}</div>
-        <div className="hud-label mt-1 text-[8.5px]">{clock.date}</div>
+        <div className="font-mono text-[14px] tracking-[0.1em] text-primary">{clock.time}</div>
+        <div
+          className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em]"
+          style={{ color: 'var(--text-dim)' }}
+        >
+          {clock.date}
+        </div>
       </div>
 
       <div className="no-drag flex flex-1 items-center justify-end gap-3">
         {/* Right: which brain is answering, and what it is doing. */}
         <ProviderIndicator />
 
-        <div
-          className={cn(
-            'hidden items-center gap-2 rounded-full border px-3 py-1.5 md:flex',
-            phase === 'ready'
-              ? 'border-[var(--hud-edge-bright)]'
-              : 'border-[var(--hud-edge)]',
-          )}
-        >
-          <span
-            className={cn(
-              'hud-dot',
-              STATE_TONE[agentState] ?? 'text-aria-idle',
-              agentState !== 'idle' && 'hud-dot-live',
-            )}
-          />
-          <span className="hud-label text-[9px] text-foreground/80">
-            {STATE_LABEL[agentState]}
-          </span>
-        </div>
+        <StatusPill agentState={agentState} phase={phase} />
 
         <div className="flex items-center gap-0.5">
           <Button size="icon-sm" variant="ghost" onClick={onOpenSettings} aria-label="Settings">
@@ -150,15 +130,51 @@ function ProviderIndicator() {
   const model = useKeys((s) => s.model);
 
   return (
-    <div className="hidden text-right leading-none lg:block">
-      <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
-        {PROVIDER_LABEL[provider] ?? provider}
-      </div>
-      {/* Model ids are long and the interesting part is the end, so the head
-          is what gets dropped when there is not room for all of it. */}
-      <div className="hud-label mt-1 max-w-[15ch] truncate font-mono text-[8.5px]" title={model}>
-        {model}
-      </div>
+    // The model id is the tooltip rather than a second line: ids run to forty
+    // characters and would set the width of the whole right-hand group.
+    <div
+      className="hidden items-center rounded-full px-2.5 py-1 text-[11px] lg:flex"
+      style={{ border: '1px solid var(--border-glow)' }}
+      title={model ? `${PROVIDER_LABEL[provider] ?? provider} · ${model}` : undefined}
+    >
+      <span className="text-primary">{PROVIDER_LABEL[provider] ?? provider}</span>
+    </div>
+  );
+}
+
+/**
+ * What ARIA is doing, from real state.
+ *
+ * `agentState` is the live turn state and takes precedence; `phase` is the
+ * connection check, which only matters when nothing is happening. Thinking
+ * gets a spinner because it is the one state with an indefinite duration —
+ * a static dot there reads as frozen.
+ */
+function StatusPill({ agentState, phase }: { agentState: AgentState; phase: string }) {
+  const busy = agentState !== 'idle';
+  const ready = phase === 'ready';
+
+  return (
+    <div
+      className="hidden items-center gap-2 rounded-full px-3 py-1 md:flex"
+      style={{
+        border: `1px solid ${busy || ready ? 'var(--border-glow)' : 'var(--border-subtle)'}`,
+      }}
+    >
+      {agentState === 'thinking' ? (
+        <span className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border border-primary border-t-transparent" />
+      ) : (
+        <span
+          className={cn(
+            'hud-dot',
+            busy ? (STATE_TONE[agentState] ?? 'text-primary') : ready ? 'text-success' : 'text-muted-foreground',
+            (busy || ready) && 'hud-dot-live',
+          )}
+        />
+      )}
+      <span className="text-[11px] uppercase tracking-[0.12em] text-foreground/80">
+        {busy ? STATE_LABEL[agentState] : ready ? 'Ready' : 'Offline'}
+      </span>
     </div>
   );
 }
@@ -169,26 +185,28 @@ function ProviderIndicator() {
  * Drawn rather than an image so it inherits the accent hue and animates with
  * the rest of the interface.
  */
-function Emblem({ state }: { state: string }) {
+function Emblem({ state }: { state: AgentState }) {
   return (
     <span
-      className={cn(
-        'relative flex h-7 w-7 shrink-0 items-center justify-center',
-        STATE_TONE[state] ?? 'text-aria-idle',
-      )}
+      className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+      style={{
+        background:
+          'radial-gradient(circle at 30% 30%, hsl(var(--accent-h) var(--accent-s) 65%), hsl(var(--accent-h) var(--accent-s) 42%))',
+        boxShadow: '0 0 12px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.45)',
+      }}
     >
-      <span
-        className="absolute inset-0 rounded-full border border-current opacity-40"
-        style={{ borderStyle: 'dashed' }}
-      />
-      <span className="absolute inset-[3px] rounded-full border border-current opacity-70" />
-      <span
-        className={cn(
-          'absolute inset-[3px] rounded-full bg-current opacity-10',
-          state !== 'idle' && 'hud-dot-live',
-        )}
-      />
-      <span className="relative font-display text-[9px] font-bold tracking-wider">A</span>
+      {/* A ring that only appears while something is happening, so the mark
+          doubles as the quietest possible activity indicator. */}
+      {state !== 'idle' && (
+        <span
+          className={cn(
+            'absolute -inset-[3px] rounded-full border border-current opacity-50',
+            STATE_TONE[state] ?? 'text-primary',
+            'hud-dot-live',
+          )}
+        />
+      )}
+      <span className="relative text-[10px] font-semibold text-[hsl(var(--background))]">A</span>
     </span>
   );
 }

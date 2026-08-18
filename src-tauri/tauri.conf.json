@@ -33,13 +33,23 @@
       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' asset: http://asset.localhost data: blob: mediastream:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://api.groq.com https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/**", "$APPCACHE/**", "$PICTURE/**", "$DOWNLOAD/**", "$HOME/**"]
+        "scope": [
+          "$APPDATA/**",
+          "$APPCACHE/**",
+          "$PICTURE/**",
+          "$DOWNLOAD/**",
+          "$HOME/**"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "rpm", "appimage", "msi", "nsis", "dmg"],
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -49,8 +59,8 @@
     ],
     "category": "Utility",
     "shortDescription": "AI assistant with full device control",
-    "longDescription": "ARIA is a voice-driven AI assistant that can see your screen, control your mouse and keyboard, manage files, drive a browser and run commands — with a confirmation layer in front of anything destructive.",
-    "copyright": "Copyright © 2026 ARIA contributors",
+    "longDescription": "ARIA is a voice-driven AI assistant that can see your screen, control your mouse and keyboard, manage files, drive a browser and run commands \u2014 with a confirmation layer in front of anything destructive.",
+    "copyright": "Copyright \u00a9 2026 ARIA contributors",
     "licenseFile": "../LICENSE",
     "linux": {
       "deb": {
@@ -62,7 +72,11 @@
         "section": "utils"
       },
       "rpm": {
-        "depends": ["webkit2gtk4.1", "gtk3", "libappindicator-gtk3"],
+        "depends": [
+          "webkit2gtk4.1",
+          "gtk3",
+          "libappindicator-gtk3"
+        ],
         "release": "1"
       },
       "appimage": {
@@ -75,10 +89,14 @@
       "timestampUrl": "http://timestamp.digicert.com",
       "nsis": {
         "installMode": "perMachine",
-        "languages": ["English"]
+        "languages": [
+          "English"
+        ]
       },
       "wix": {
-        "language": ["en-US"]
+        "language": [
+          "en-US"
+        ]
       }
     },
     "macOS": {

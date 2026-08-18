@@ -1,13 +1,9 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// Exactly one of these ever renders, decided at load. Importing both
-// statically shipped the whole Capacitor plugin tree to desktop users and the
-// desktop tool set to phones — neither of which can run the other's code.
+// Lazy so it stays out of the entry chunk; this is a desktop-only build,
+// so there is no second layout to choose between.
 const DesktopLayout = lazy(() =>
   import('@/components/desktop/DesktopLayout').then((m) => ({ default: m.DesktopLayout })),
-);
-const MobileLayout = lazy(() =>
-  import('@/components/mobile/MobileLayout').then((m) => ({ default: m.MobileLayout })),
 );
 // Neither is needed to paint the first screen — settings is behind a click,
 // and first run only ever opens once. Loading them lazily keeps them out of
@@ -22,6 +18,7 @@ const ModelDownload = lazy(() =>
   import('@/components/onboarding/ModelDownload').then((m) => ({ default: m.ModelDownload })),
 );
 import { DependencyBanner } from '@/components/shared/DependencyBanner';
+import { SpaceBackground } from '@/components/shared/SpaceBackground';
 import { ToastViewport } from '@/components/ui/toast';
 import { CommandPalette } from '@/components/shared/CommandPalette';
 import { BootSequence } from '@/components/onboarding/BootSequence';
@@ -31,7 +28,7 @@ import { TooltipProvider } from '@/components/ui/primitives';
 import { useSettings } from '@/store/settings';
 import { useConversation } from '@/store/conversation';
 import { useConnection } from '@/store/connection';
-import { isMobile, isTauri } from '@/platform';
+import { isTauri } from '@/platform';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,7 +97,7 @@ export default function App() {
   // because everything downstream depends on having a backend at all.
   useEffect(() => {
     if (!loaded) return;
-    if (!isTauri || isMobile) {
+    if (!isTauri) {
       setNeedsModel(false);
       return;
     }
@@ -117,52 +114,36 @@ export default function App() {
     if (loaded && setupComplete) void useConnection.getState().check();
   }, [loaded, setupComplete]);
 
+  // Re-apply the saved microphone. Rust holds this in memory, so a device
+  // chosen in a previous session is otherwise forgotten at every launch.
+  useEffect(() => {
+    if (!loaded || !isTauri) return;
+    const name = useSettings.getState().settings.voice.inputDevice;
+    if (!name) return;
+    void import('@/platform/desktop').then((m) => m.desktop.setInputDevice(name));
+  }, [loaded]);
+
+  // Settle the OpenRouter model against the live catalogue. OpenRouter
+  // withdraws free models without notice, so a saved id can stop existing
+  // between one launch and the next; Rust re-picks one when that happens.
+  //
+  // Fired after the first frame and never awaited — it is a network round trip,
+  // and the first message must not queue behind it. Whatever is already saved
+  // stays usable until this returns something different.
+  useEffect(() => {
+    if (!loaded || !isTauri) return;
+    const handle = requestAnimationFrame(() => {
+      void import('@/store/keys').then((m) => m.useKeys.getState().reconcileOpenRouterModel());
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [loaded]);
+
   // One place to open settings, so a keyboard shortcut and a toast action can
   // both reach it without threading a callback through the tree.
   useEffect(() => {
     const open = () => setSettingsOpen(true);
     window.addEventListener('aria:open-settings', open);
     return () => window.removeEventListener('aria:open-settings', open);
-  }, []);
-
-  // Mobile chrome: match the status bar to the app background.
-  useEffect(() => {
-    if (!isMobile) return;
-    void (async () => {
-      try {
-        const { StatusBar, Style } = await import('@capacitor/status-bar');
-        await StatusBar.setStyle({ style: Style.Dark });
-        await StatusBar.setBackgroundColor({ color: '#05080d' });
-      } catch {
-        // Not available on every device; purely cosmetic.
-      }
-    })();
-  }, []);
-
-  // Handle `aria://chat?message=…` deep links and Android share intents.
-  useEffect(() => {
-    if (!isMobile) return;
-
-    let remove: (() => void) | undefined;
-    void (async () => {
-      const { App: CapApp } = await import('@capacitor/app');
-      const handle = await CapApp.addListener('appUrlOpen', ({ url }) => {
-        try {
-          const parsed = new URL(url);
-          const message = parsed.searchParams.get('message');
-          if (message) {
-            // Same event the native share/PROCESS_TEXT paths emit, so there is
-            // one entry point for "text arrived from outside the app".
-            window.dispatchEvent(new CustomEvent('aria:shared-text', { detail: message }));
-          }
-        } catch {
-          // A malformed deep link is not worth crashing over.
-        }
-      });
-      remove = () => void handle.remove();
-    })();
-
-    return () => remove?.();
   }, []);
 
   if (!loaded) {
@@ -181,10 +162,13 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={300}>
-        <div className="h-full">
+        {/* Behind everything, outside the app tree's stacking context so no
+            component has to leave room for it. */}
+        <SpaceBackground />
+        <div className="relative z-10 h-full">
           {/* Sits above everything and clears itself; the app renders behind
               it, so nothing is waiting on the animation. */}
-          {booting && !isMobile && <BootSequence onDone={() => setBooting(false)} />}
+          {booting && <BootSequence onDone={() => setBooting(false)} />}
           {showModelDownload ? (
             <Suspense fallback={<div className="fixed inset-0 bg-background" />}>
               <ModelDownload
@@ -198,16 +182,12 @@ export default function App() {
             </Suspense>
           ) : (
             <Suspense fallback={<div className="h-full bg-background" />}>
-              {isMobile ? (
-                <MobileLayout />
-              ) : (
-                <DesktopLayout onOpenSettings={() => setSettingsOpen(true)} />
-              )}
+              <DesktopLayout onOpenSettings={() => setSettingsOpen(true)} />
             </Suspense>
           )}
 
-          {/* Desktop settings are modal; mobile has them as a tab. */}
-          {settingsOpen && !isMobile && (
+          {/* Settings are modal. */}
+          {settingsOpen && (
             <Suspense fallback={null}>
               <SettingsPanel initialTab={settingsTab} onClose={() => setSettingsOpen(false)} />
             </Suspense>
@@ -220,7 +200,7 @@ export default function App() {
           {/* Errors and notices land here, never as blocking modals. */}
           <ToastViewport />
 
-          {!isMobile && <CommandPalette onOpenSettings={() => setSettingsOpen(true)} />}
+          <CommandPalette onOpenSettings={() => setSettingsOpen(true)} />
         </div>
       </TooltipProvider>
     </QueryClientProvider>

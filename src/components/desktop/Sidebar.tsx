@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Camera,
   ChevronDown,
+  ChevronLeft,
   FolderOpen,
   Globe,
   MessageSquarePlus,
@@ -10,7 +11,6 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ScrollArea, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/primitives';
 import { useConversation } from '@/store/conversation';
 import { cn } from '@/lib/utils';
@@ -52,9 +52,12 @@ const HISTORY_LIMIT = 10;
 
 interface SidebarProps {
   onQuickAction: (prompt: string) => void;
+  /** Owned by the layout, which renders the rail that brings it back. */
+  collapsed: boolean;
+  onCollapse: () => void;
 }
 
-export function Sidebar({ onQuickAction }: SidebarProps) {
+export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) {
   const list = useConversation((s) => s.list);
   const currentId = useConversation((s) => s.current.id);
   const open = useConversation((s) => s.open);
@@ -71,12 +74,33 @@ export function Sidebar({ onQuickAction }: SidebarProps) {
   const recent = list.slice(0, HISTORY_LIMIT);
 
   return (
-    <aside className="hud-panel hud-scan flex h-full w-60 shrink-0 flex-col border-y-0 border-l-0">
+    <aside
+      className={cn(
+        'relative flex h-full shrink-0 flex-col overflow-hidden transition-[width] duration-[600ms]',
+        collapsed ? 'w-0' : 'w-[220px]',
+      )}
+      style={{
+        background: 'hsl(222 71% 5% / 0.6)',
+        backdropFilter: 'blur(10px)',
+        borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
+        transitionTimingFunction: 'var(--aria-ease)',
+      }}
+    >
+      {/* Held at full width while collapsing so the contents slide out as a
+          block rather than reflowing to nothing on the way. */}
+      <div className="flex h-full w-[220px] flex-col">
       <div className="p-3">
-        <Button className="w-full justify-start gap-2" size="sm" onClick={startNew}>
+        {/* Outline by default, filling on hover — a solid cyan block here
+            outweighs everything else in the panel. */}
+        <button
+          onClick={startNew}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border
+            border-primary/50 px-3 py-2 text-[13px] text-primary transition-colors
+            duration-150 hover:bg-primary hover:text-[hsl(var(--background))]"
+        >
           <MessageSquarePlus className="h-4 w-4" />
           New conversation
-        </Button>
+        </button>
       </div>
 
       {/* Quick actions as a single row of icons. The labels live in tooltips:
@@ -113,7 +137,12 @@ export function Sidebar({ onQuickAction }: SidebarProps) {
             !historyOpen && '-rotate-90',
           )}
         />
-        <span className="hud-title">History</span>
+        <span
+          className="text-[10px] uppercase tracking-[0.2em]"
+          style={{ color: 'var(--text-dim)' }}
+        >
+          History
+        </span>
         {list.length > 0 && (
           <span className="ml-auto font-mono text-[10px] opacity-60">{list.length}</span>
         )}
@@ -133,11 +162,14 @@ export function Sidebar({ onQuickAction }: SidebarProps) {
                 key={conversation.id}
                 layout
                 className={cn(
-                  'group flex items-start gap-1 rounded-lg px-2 py-1.5 transition-colors duration-150',
+                  'group flex items-start gap-1 rounded-lg border-l-2 px-2 py-1.5 transition-colors duration-150',
                   conversation.id === currentId
-                    ? 'bg-primary/12 text-foreground'
-                    : 'text-muted-foreground hover:bg-white/5 hover:text-foreground',
+                    ? 'border-primary bg-[var(--bg-glass)] text-foreground'
+                    : 'border-transparent hover:bg-[var(--bg-glass)] hover:text-foreground',
                 )}
+                style={
+                  conversation.id === currentId ? undefined : { color: 'var(--text-secondary)' }
+                }
               >
                 <button
                   onClick={() => void open(conversation.id)}
@@ -145,7 +177,7 @@ export function Sidebar({ onQuickAction }: SidebarProps) {
                 >
                   <span className="flex items-center gap-1.5">
                     {conversation.pinned && <Pin className="h-3 w-3 shrink-0 text-primary" />}
-                    <span className="truncate text-xs">{conversation.title}</span>
+                    <span className="truncate text-[13px]">{conversation.title}</span>
                   </span>
                   {conversation.preview && (
                     <span className="truncate text-[10px] leading-tight opacity-55">
@@ -167,6 +199,19 @@ export function Sidebar({ onQuickAction }: SidebarProps) {
           </div>
         </ScrollArea>
       )}
+
+      <button
+        onClick={onCollapse}
+        aria-label="Collapse sidebar"
+        className="mt-auto flex items-center justify-center gap-1.5 py-2 text-[10px]
+          uppercase tracking-[0.16em] text-muted-foreground transition-colors
+          duration-150 hover:text-primary"
+        style={{ borderTop: '1px solid var(--border-subtle)' }}
+      >
+        <ChevronLeft className="h-3 w-3" />
+        Collapse
+      </button>
+      </div>
     </aside>
   );
 }

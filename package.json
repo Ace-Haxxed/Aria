@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ARIA — Adaptive Reasoning and Intelligence Assistant",
+  "description": "ARIA \u2014 Adaptive Reasoning and Intelligence Assistant",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -14,10 +14,6 @@
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "cap:sync": "npm run build && cap sync",
-    "android:open": "npm run cap:sync && cap open android",
-    "android:build": "npm run cap:sync && cd android && ./gradlew assembleDebug bundleRelease",
-    "ios:open": "npm run cap:sync && cap open ios",
     "models:download": "bash scripts/download-models.sh"
   },
   "dependencies": {

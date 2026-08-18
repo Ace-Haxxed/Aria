@@ -2,8 +2,12 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capabilities for the main Jarvis window. Note that Jarvis's own #[tauri::command] functions are not listed here: in Tauri v2 the ACL governs plugin commands (the core:, shell:, http:, fs: namespaces below), while commands registered through generate_handler are reachable without an entry. Everything here is therefore a plugin permission.",
-  "platforms": ["linux", "windows", "macOS"],
-  "windows": ["main"],
+  "platforms": [
+    "linux"
+  ],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -19,17 +23,14 @@
     "core:event:default",
     "core:app:default",
     "core:path:default",
-
     "shell:default",
     "shell:allow-open",
     "shell:allow-execute",
-
     "http:default",
     "http:allow-fetch",
     "http:allow-fetch-cancel",
     "http:allow-fetch-read-body",
     "http:allow-fetch-send",
-
     "fs:default",
     "fs:allow-read",
     "fs:allow-read-file",
@@ -41,7 +42,6 @@
     "fs:allow-mkdir",
     "fs:allow-exists",
     "fs:allow-stat",
-
     "store:default",
     "dialog:default",
     "notification:default",

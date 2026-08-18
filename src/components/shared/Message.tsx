@@ -7,7 +7,6 @@ import {
   Terminal,
   ThumbsDown,
   ThumbsUp,
-  User,
   Wrench,
 } from 'lucide-react';
 import type { Message as MessageType } from '@/core/types';
@@ -54,23 +53,35 @@ function MessageComponent({ message, streamingText }: MessageProps) {
       className={cn('group flex w-full gap-3', isUser ? 'justify-end' : 'justify-start')}
     >
       {!isUser && (
-        <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
-          <span className="text-[10px] font-semibold tracking-wider text-primary">A</span>
+        <div
+          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+          style={{
+            background:
+              'linear-gradient(140deg, hsl(var(--accent-h) var(--accent-s) 62%), hsl(var(--accent-h) var(--accent-s) 38%))',
+          }}
+        >
+          <span className="text-[12px] font-semibold text-white">A</span>
         </div>
       )}
 
-      <div className={cn('max-w-[78%] space-y-2', isUser && 'items-end')}>
+      <div className={cn('space-y-2', isUser ? 'max-w-[70%] items-end' : 'max-w-[80%]')}>
         <div
           className={cn(
-            // Glass: a translucent fill over the navy, blurred, with a hairline
-            // edge. The blur is what separates a card from the background
-            // without needing a heavy border or a drop shadow.
-            'rounded-2xl px-4 py-2.5 text-sm leading-relaxed backdrop-blur-md',
-            isUser
-              ? 'rounded-br-sm border border-primary/25 bg-primary/15 text-foreground'
-              : 'rounded-bl-sm border border-white/10 bg-white/[0.04]',
-            message.error && 'border-risk-high/50 bg-risk-high/10',
+            'text-sm leading-relaxed',
+            // Only the user's turn is a bubble. ARIA's reply is the content of
+            // the page, and a card around it competes with what it contains.
+            isUser && 'px-4 py-3 backdrop-blur-md',
+            message.error && 'rounded-2xl border border-risk-high/50 bg-risk-high/10 px-4 py-3',
           )}
+          style={
+            isUser && !message.error
+              ? {
+                  background: 'hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.08)',
+                  border: '1px solid hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.15)',
+                  borderRadius: '16px 16px 4px 16px',
+                }
+              : undefined
+          }
         >
           {message.images?.map((src, i) => (
             <img
@@ -117,15 +128,12 @@ function MessageComponent({ message, streamingText }: MessageProps) {
           </div>
         )}
 
-        {/* Timestamps and reactions are chrome, not content. Showing them on
-            every message triples the visual noise of a transcript, so they
-            fade in on hover and on keyboard focus. */}
+        {/* Provenance stays visible: which model answered and how fast is the
+            first thing checked when a reply looks off. The actions beside it
+            are still hover-only — those are chrome. */}
         <div
-          className={cn(
-            `flex items-center gap-1 px-1 text-[10px] text-muted-foreground/70 opacity-0
-             transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100`,
-            isUser && 'justify-end',
-          )}
+          className={cn('flex items-center gap-1 px-1 text-[10px]', isUser && 'justify-end')}
+          style={{ color: 'var(--text-dim)' }}
         >
           <span>{formatTime(message.timestamp)}</span>
 
@@ -146,11 +154,6 @@ function MessageComponent({ message, streamingText }: MessageProps) {
         </div>
       </div>
 
-      {isUser && (
-        <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
-          <User className="h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-      )}
     </motion.div>
   );
 }

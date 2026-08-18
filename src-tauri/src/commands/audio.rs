@@ -157,8 +157,34 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /* ── Device helpers ─────────────────────────────────────────────── */
 
+/// The device the user picked in Settings, or empty for the system default.
+static PREFERRED_INPUT: Mutex<String> = Mutex::new(String::new());
+
+/// Remember which microphone to open. Empty restores the system default.
+#[tauri::command]
+pub async fn set_input_device(name: Option<String>) -> JResult<()> {
+    *lock(&PREFERRED_INPUT) = name.unwrap_or_default();
+    Ok(())
+}
+
 fn default_input() -> JResult<(cpal::Device, cpal::SupportedStreamConfig)> {
     let host = cpal::default_host();
+
+    // A named device the user chose. Falls through to the system default if it
+    // has since been unplugged, which is better than refusing to record.
+    let preferred = lock(&PREFERRED_INPUT).clone();
+    if !preferred.is_empty() {
+        if let Ok(mut devices) = host.input_devices() {
+            if let Some(device) =
+                devices.find(|d| d.name().is_ok_and(|n| n == preferred))
+            {
+                if let Ok(config) = device.default_input_config() {
+                    return Ok((device, config));
+                }
+            }
+        }
+    }
+
     let device = host.default_input_device().ok_or_else(|| {
         AriaError::msg(
             "No microphone was found. Plug one in, or pick an input device in your \
@@ -176,6 +202,29 @@ fn default_input() -> JResult<(cpal::Device, cpal::SupportedStreamConfig)> {
 
 fn device_name(device: &cpal::Device) -> String {
     device.name().unwrap_or_else(|_| "default input".to_string())
+}
+
+/// Every input device the host can enumerate, for the picker in Settings.
+///
+/// Returns an empty list rather than an error when enumeration fails: not
+/// being able to name the devices is not a reason to fail opening Settings,
+/// and the system default still works.
+#[tauri::command]
+pub async fn list_microphones() -> JResult<Vec<String>> {
+    Ok(tokio::task::spawn_blocking(|| {
+        let host = cpal::default_host();
+        let Ok(devices) = host.input_devices() else {
+            return Vec::new();
+        };
+        let mut names: Vec<String> = devices.filter_map(|d| d.name().ok()).collect();
+        // Duplicates are normal on ALSA, which lists the same card under
+        // several plugin names.
+        names.sort();
+        names.dedup();
+        names
+    })
+    .await
+    .unwrap_or_default())
 }
 
 /// Build an input stream for one concrete sample format, converting whatever
@@ -254,7 +303,11 @@ pub struct MicTest {
 /// the only thing that distinguishes a working input from a listed one.
 #[tauri::command]
 pub async fn test_microphone() -> JResult<MicTest> {
-    tokio::task::spawn_blocking(|| {
+    // The wake-word listener holds the input device while it is running, so
+    // testing without handing it over would report a working microphone as
+    // busy — and that is the machine most likely to be running this test.
+    super::wakeword::pause();
+    let outcome = tokio::task::spawn_blocking(|| {
         let (device, supported) = default_input()?;
         let name = device_name(&device);
         let sample_rate = supported.sample_rate().0;
@@ -299,8 +352,12 @@ pub async fn test_microphone() -> JResult<MicTest> {
             ))),
         }
     })
-    .await
-    .map_err(|e| AriaError::msg(format!("microphone test did not finish: {e}")))?
+    .await;
+    // Give the device back whatever the outcome was; a failed test must not
+    // leave the wake word deaf.
+    super::wakeword::resume();
+
+    outcome.map_err(|e| AriaError::msg(format!("microphone test did not finish: {e}")))?
 }
 
 /// Begin recording. Audio streams to the frontend as `mic-chunk` (base64 PCM-16
@@ -329,7 +386,7 @@ pub async fn start_capture(app: AppHandle, silence_timeout_ms: Option<u32>) -> J
             let samples = samples.clone();
 
             std::thread::Builder::new()
-                .name("jarvis-mic".into())
+                .name("aria-mic".into())
                 .spawn(move || {
                     // The thread owns the stream for its entire life: cpal
                     // streams are !Send, so it can never be handed back.

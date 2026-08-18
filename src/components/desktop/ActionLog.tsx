@@ -1,13 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Ban,
-  CheckCircle2,
   ChevronRight,
   Download,
-  Loader2,
   RotateCcw,
   Undo2,
-  XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ActionLogEntry } from '@/core/types';
@@ -19,15 +16,17 @@ import { cn, formatDuration, formatTime } from '@/lib/utils';
 function StatusIcon({ status }: { status: ActionLogEntry['status'] }) {
   switch (status) {
     case 'running':
-      return <Loader2 className="h-3.5 w-3.5 animate-spin text-aria-acting" />;
+      return (
+        <span className="h-2.5 w-2.5 shrink-0 animate-spin rounded-full border border-primary border-t-transparent" />
+      );
     case 'ok':
-      return <CheckCircle2 className="h-3.5 w-3.5 text-aria-acting" />;
+      return <span className="hud-dot text-success" />;
     case 'error':
-      return <XCircle className="h-3.5 w-3.5 text-risk-high" />;
+      return <span className="hud-dot text-danger" />;
     case 'cancelled':
-      return <Ban className="h-3.5 w-3.5 text-muted-foreground" />;
+      return <Ban className="h-3 w-3 shrink-0 text-muted-foreground" />;
     default:
-      return <Loader2 className="h-3.5 w-3.5 text-muted-foreground" />;
+      return <span className="hud-dot text-muted-foreground" />;
   }
 }
 
@@ -50,9 +49,19 @@ export function ActionLog() {
   };
 
   return (
-    <aside className="hud-panel hud-scan flex h-full w-80 shrink-0 flex-col border-y-0 border-r-0">
+    <aside
+      className="flex h-full w-[260px] shrink-0 flex-col"
+      style={{
+        background: 'hsl(222 71% 5% / 0.6)',
+        backdropFilter: 'blur(10px)',
+        borderLeft: '1px solid var(--border-subtle)',
+      }}
+    >
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="hud-title">
+        <div
+          className="text-[10px] uppercase tracking-[0.2em]"
+          style={{ color: 'var(--text-dim)' }}
+        >
           Action log
         </div>
         <Button
@@ -96,8 +105,13 @@ function LogEntry({ entry, onUndo }: { entry: ActionLogEntry; onUndo: () => void
                 exit={{ opacity: 0, x: 16 }}
                 transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
                 className={cn(
-                  'rounded-lg border border-border/60 bg-background/40 p-2.5',
-                  entry.status === 'error' && 'border-risk-high/40 bg-risk-high/5',
+                  'rounded-md border-l-2 px-2 py-1.5 transition-colors duration-150',
+                  'hover:bg-[var(--bg-glass)]',
+                  entry.risk === 'high'
+                    ? 'border-risk-medium'
+                    : entry.status === 'error'
+                      ? 'border-risk-high'
+                      : 'border-transparent',
                 )}
               >
                 <div className="flex items-start gap-2">

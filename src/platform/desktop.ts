@@ -213,6 +213,37 @@ export interface MicTest {
   channels: number;
 }
 
+/** Which engine will handle the next dictation, and why. */
+export interface SttStatus {
+  method: 'offline' | 'api' | 'none';
+  binary: string | null;
+  model: string | null;
+  modelDir: string;
+  hasOpenaiKey: boolean;
+  canBuild: boolean;
+  detail: string;
+}
+
+/** Result of measuring the room to set the wake-word threshold. */
+export interface Calibration {
+  ambientBest: number;
+  threshold: number;
+  previous: number;
+  windowsScored: number;
+  detail: string;
+}
+
+/** Progress for the whisper model download and the sidecar build. */
+export interface WhisperProgress {
+  phase: 'downloading' | 'building' | 'done' | 'error';
+  percent: number;
+  downloaded: number;
+  total: number;
+  detail: string;
+  done: boolean;
+  error: string | null;
+}
+
 export interface VoiceStatus {
   whisperBinary: string | null;
   whisperModel: string | null;
@@ -268,6 +299,16 @@ export const desktop = {
     invoke<WakeWordStatus>('train_wake_word', { word, replace }),
   setWakeWordSensitivity: (threshold: number) =>
     invoke<void>('set_wake_word_sensitivity', { threshold }),
+  /** Measure the room and set the firing threshold from what it scores. */
+  calibrateWakeWord: (word: string, seconds?: number) =>
+    invoke<Calibration>('calibrate_wake_word', { word, seconds: seconds ?? null }),
+
+  /* speech to text provisioning */
+  listMicrophones: () => invoke<string[]>('list_microphones'),
+  setInputDevice: (name?: string) => invoke<void>('set_input_device', { name: name ?? null }),
+  sttStatus: () => invoke<SttStatus>('stt_status'),
+  downloadWhisperModel: () => invoke<string>('download_whisper_model'),
+  buildWhisperSidecar: () => invoke<string>('build_whisper_sidecar'),
 
   /* training data — written locally, never uploaded */
   trainingAppend: (record: {

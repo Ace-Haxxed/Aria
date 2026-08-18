@@ -9,7 +9,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Loader2, Trash2, X } from 'lucide-react';
 import {
-  OPENROUTER_FALLBACK_MODEL,
   PROVIDERS,
   PROVIDER_CONSOLE,
   PROVIDER_LABEL,
@@ -197,25 +196,37 @@ export function KeysPage() {
               >
                 {freeModelsState === 'loading' && <option>Loading free models…</option>}
 
+                {/* No model resolved yet — the catalogue has not answered, or
+                    it answered and nothing qualified. Better an empty slot
+                    than an id we made up. */}
+                {freeModelsState === 'ready' && !model && (
+                  <option value="">Pick a model</option>
+                )}
+
                 {/* The model in use may be paid, or may have left the free
                     list; it still has to appear or the select would silently
                     show something else as selected. */}
                 {freeModelsState === 'ready' &&
+                  Boolean(model) &&
                   !freeModels.some((m) => m.id === model) && (
-                    <option value={model}>{model} — current</option>
+                    <option value={model}>{model} — no longer listed</option>
                   )}
 
+                {/* Id, not display name: the id is what goes over the wire and
+                    what an error message will quote back. Already sorted
+                    largest context first by Rust. */}
                 {freeModels.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.tier ? `[${m.tier}] ` : ''}
-                    {m.name} — {formatContext(m.context)} ctx
+                    {m.id} — {formatContext(m.context)} ctx
                     {m.vision ? ' · vision' : ''}
                   </option>
                 ))}
               </select>
 
               <p className="text-[11px] text-muted-foreground">
-                Free models only, read from OpenRouter just now.{' '}
+                Free tool-capable models, read from OpenRouter just now, largest context
+                first.{' '}
                 <span className="text-foreground/70">Smart</span> is 70B+ parameters,{' '}
                 <span className="text-foreground/70">Balanced</span> 3–70B,{' '}
                 <span className="text-foreground/70">Fast</span> under 3B.
@@ -236,8 +247,9 @@ export function KeysPage() {
 
           {tab === 'openrouter' && freeModelsState === 'failed' && (
             <p className="text-[11px] text-risk-medium">
-              Could not reach OpenRouter to list its free models. Type an id, or reopen this
-              page to try again — {OPENROUTER_FALLBACK_MODEL} is a safe default.
+              Could not reach OpenRouter to list its free models. Reopen this page to try
+              again, or type an id from openrouter.ai/models — ARIA does not suggest one,
+              because the free catalogue rotates and any id named here would go stale.
             </p>
           )}
 

@@ -96,6 +96,15 @@ export interface ToolCall {
   id: string;
   name: string;
   args: Record<string, unknown>;
+  /**
+   * Opaque provider state that must be echoed back with the call.
+   *
+   * Gemini's thinking models return a `thoughtSignature` beside every
+   * `functionCall` and reject the following turn if the call is replayed
+   * without it. It is meaningless to ARIA — it is never read, only carried —
+   * but dropping it breaks multi-step tool use entirely.
+   */
+  signature?: string;
 }
 
 export interface ToolResult {
@@ -214,6 +223,8 @@ export type TTSEngine = 'piper-sidecar' | 'os-native' | 'browser' | 'native' | '
 
 export interface VoiceSettings {
   sttEngine: STTEngine;
+  /** cpal device name, or undefined for the system default. */
+  inputDevice?: string;
   ttsEngine: TTSEngine;
   wakeWordEnabled: boolean;
   wakeWord: string;

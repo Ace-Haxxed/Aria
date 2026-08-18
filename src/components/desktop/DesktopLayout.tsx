@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 import { Orb, STATE_LABEL } from '@/components/shared/Orb';
 import { MessageList, ThinkingSkeleton } from '@/components/shared/MessageList';
 import { StatusBar } from '@/components/shared/StatusBar';
@@ -32,10 +33,9 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
-
-  // `send` needs `speak`, and `speak` comes from useVoice which needs a
-  // transcript handler that calls `send` — break the cycle with a ref.
-  const sendRef = useRef<(text: string) => void>(() => {});
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  /** The latest transcript, handed to the composer to show then auto-send. */
+  const [transcript, setTranscript] = useState<{ text: string; at: number } | null>(null);
 
   const voice = useVoice(
     useCallback((text: string) => {
@@ -47,14 +47,14 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
         if (isTauri) void import('@/platform/desktop').then((m) => m.desktop.toggleWindow());
         return;
       }
-      sendRef.current(text);
+      // Shown in the composer and sent a second later, rather than fired off
+      // the instant whisper returns — a misheard word is then a keystroke to
+      // fix instead of a message already sent.
+      setTranscript({ text, at: Date.now() });
     }, []),
   );
 
   const agent = useAgent(voice.speak, voice.speakSentence);
-  useEffect(() => {
-    sendRef.current = (text: string) => void agent.send(text);
-  }, [agent]);
 
   // `aria --demo` drives the same send path a typed message uses, so the demo
   // exercises the real agent loop rather than a parallel one that could drift
@@ -149,14 +149,44 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
     toggleMute: () => updateVoice({ autoSpeak: !autoSpeak }),
   });
 
-  // Wake word: bring the window forward and start listening.
-  useWakeWord(
-    useCallback(() => {
-      if (isTauri) void import('@/platform/desktop').then((m) => m.desktop.showWindow());
-      void voice.startListening();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
-  );
+  // Wake word: bring the window forward and take one hands-free request.
+  //
+  // Read through a ref rather than closed over. The handler is registered once
+  // with an empty dependency list, so capturing `voice` directly would pin the
+  // first render's copy — whose `listening` is permanently false, so it would
+  // happily open a second recording on top of one already running.
+  const voiceRef = useRef(voice);
+  useEffect(() => {
+    voiceRef.current = voice;
+  }, [voice]);
+
+  const wake = useCallback(() => {
+    if (isTauri) void import('@/platform/desktop').then((m) => m.desktop.showWindow());
+    // `listenOnce`, not `startListening`: there is no button release coming,
+    // so the take has to end itself or the request never reaches the model.
+    void voiceRef.current.listenOnce();
+  }, []);
+
+  const wakeState = useWakeWord(wake);
+
+  // A wake word that is enabled but has no recorded template listens for
+  // nothing and says nothing. Point at the one screen that can fix it, rather
+  // than leaving the user to conclude the feature is broken.
+  const reportedWakeIssue = useRef<string | null>(null);
+  useEffect(() => {
+    const issue = wakeState.error ?? (wakeState.needsTraining ? 'untrained' : null);
+    if (!issue || issue === reportedWakeIssue.current) return;
+    reportedWakeIssue.current = issue;
+
+    if (wakeState.needsTraining && !wakeState.error) {
+      toast.info('Wake word needs a voice sample', 'Record one in Settings → Voice.', {
+        label: 'Open settings',
+        run: onOpenSettings,
+      });
+      return;
+    }
+    toast.error('Wake word listener stopped', humanise(wakeState.error));
+  }, [wakeState.error, wakeState.needsTraining, onOpenSettings]);
 
   const handleQuickAction = (prompt: string) => {
     // Prompts ending in a space are meant to be completed by the user.
@@ -170,15 +200,34 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
   const empty = conversation.messages.length === 0;
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col">
       <TitleBar onOpenSettings={onOpenSettings} />
 
       <div className="flex min-h-0 flex-1">
         <Hint id="history" text="Your conversation history lives here" placement="right" delayMs={500}>
-          <Sidebar onQuickAction={handleQuickAction} />
+          <Sidebar
+            onQuickAction={handleQuickAction}
+            collapsed={sidebarCollapsed}
+            onCollapse={() => setSidebarCollapsed(true)}
+          />
         </Hint>
 
-        <main className="aria-grid-bg relative flex min-w-0 flex-1 flex-col">
+        {/* The only way back once the panel is at zero width. A full-height
+            rail rather than a floating button, so it cannot end up over the
+            transcript. */}
+        {sidebarCollapsed && (
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label="Expand sidebar"
+            className="flex w-6 shrink-0 items-center justify-center text-muted-foreground
+              transition-colors duration-150 hover:text-primary"
+            style={{ borderRight: '1px solid var(--border-subtle)' }}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        <main className="relative flex min-w-0 flex-1 flex-col">
           {empty ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
               <Hint id="talk" text={'Say "Hey ARIA" or tap here to talk'} placement="right">
@@ -186,7 +235,7 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
                   state={agentState}
                   level={voice.level}
                   spectrum={voice.spectrum}
-                  size={260}
+                  size={80}
                   onClick={() => voice.toggleListening()}
                 />
               </Hint>
@@ -202,16 +251,6 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-center border-b border-border/40 py-4">
-                <Orb
-                  state={agentState}
-                  level={voice.level}
-                  spectrum={voice.spectrum}
-                  size={96}
-                  onClick={() => voice.toggleListening()}
-                />
-              </div>
-
               <div ref={scrollRef} className="aria-scroll relative min-h-0 flex-1 overflow-y-auto">
                 <MessageList
                   messages={conversation.messages}
@@ -242,15 +281,18 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
             </>
           )}
 
-          <div className="border-t border-border/40 bg-card/30 px-6 py-3">
-            <div className="mx-auto max-w-3xl">
+          {/* Floating rather than a docked bar: the transcript scrolls behind
+              it, so the composer reads as sitting above the conversation
+              instead of cutting it off. */}
+          <div className="px-6 pb-4 pt-2">
+            <div className="mx-auto w-full max-w-[800px]">
               <VoiceInput
                 onSend={(text, images) => void agent.send(text, images)}
                 lastUserMessage={
                   [...conversation.messages].reverse().find((m) => m.role === 'user')?.content
                 }
-                onMicDown={() => void voice.startListening()}
-                onMicUp={() => void voice.stopListening()}
+                onMicToggle={() => voice.toggleListening()}
+                seed={transcript}
                 listening={voice.listening}
                 level={voice.level}
                 busy={agent.busy}
@@ -265,10 +307,8 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
             </div>
           </div>
 
-          <div className="border-t border-border/40 bg-card/20">
-            <div className="mx-auto max-w-3xl">
-              <StatusBar onOpenSettings={onOpenSettings} />
-            </div>
+          <div className="mx-auto w-full max-w-[800px] px-6 pb-2">
+            <StatusBar onOpenSettings={onOpenSettings} />
           </div>
 
           <ScreenPreview />

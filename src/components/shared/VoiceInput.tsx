@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUp, Loader2, Mic, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,19 @@ import { cn } from '@/lib/utils';
 /** The composer grows to this many lines, then scrolls. */
 const MAX_LINES = 5;
 
+/** How long a finished transcript sits in the box before it sends itself. */
+const AUTO_SUBMIT_MS = 1_000;
+
 interface VoiceInputProps {
   onSend: (text: string, images?: string[]) => void;
-  onMicDown: () => void;
-  onMicUp: () => void;
+  /** Click to start listening, click again to stop. */
+  onMicToggle: () => void;
+  /**
+   * A finished transcript to drop into the box. It is shown rather than sent
+   * straight away, then submits itself a second later — long enough to read
+   * what was heard and hit Escape if the transcription is wrong.
+   */
+  seed?: { text: string; at: number } | null;
   listening: boolean;
   busy: boolean;
   onCancel: () => void;
@@ -25,8 +34,8 @@ interface VoiceInputProps {
 
 export function VoiceInput({
   onSend,
-  onMicDown,
-  onMicUp,
+  onMicToggle,
+  seed,
   listening,
   busy,
   onCancel,
@@ -38,6 +47,7 @@ export function VoiceInput({
   const [value, setValue] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [focused, setFocused] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Grow with the content up to MAX_LINES, then scroll. The ceiling is
@@ -57,7 +67,48 @@ export function VoiceInput({
     el.style.overflowY = el.scrollHeight > ceiling ? 'auto' : 'hidden';
   }, [value]);
 
+  /**
+   * Show a transcript, then send it a beat later.
+   *
+   * Keyed on `seed.at` rather than the text so saying the same thing twice
+   * still fires. Any keystroke or Escape during the pause cancels the send and
+   * leaves the text in the box to be edited — which is the whole reason for
+   * the pause.
+   */
+  const autoSubmitRef = useRef<number | null>(null);
+  const cancelAutoSubmit = useCallback(() => {
+    if (autoSubmitRef.current != null) {
+      clearTimeout(autoSubmitRef.current);
+      autoSubmitRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!seed?.text.trim()) return;
+    setValue(seed.text);
+    ref.current?.focus();
+
+    cancelAutoSubmit();
+    autoSubmitRef.current = window.setTimeout(() => {
+      autoSubmitRef.current = null;
+      // Read from the element rather than from `value`, which this effect
+      // closed over before the state update landed.
+      const current = ref.current?.value.trim() ?? seed.text.trim();
+      if (current) {
+        setValue('');
+        setImages([]);
+        onSend(current, images.length > 0 ? images : undefined);
+      }
+    }, AUTO_SUBMIT_MS);
+
+    return cancelAutoSubmit;
+    // `images` and `onSend` are read at fire time, not subscribed to: adding
+    // them would restart the countdown whenever an image is attached.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed?.at, cancelAutoSubmit]);
+
   const submit = () => {
+    cancelAutoSubmit();
     const text = value.trim();
     // An image on its own is a valid message — "what is this?" is implied.
     if (!text && images.length === 0) return;
@@ -135,11 +186,20 @@ export function VoiceInput({
           the ring are what lift it off the conversation scrolling behind it. */}
       <div
         className={cn(
-          `flex items-end gap-1.5 rounded-[1.6rem] border bg-white/[0.04] p-1.5
-           shadow-[0_8px_32px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl
-           transition-colors duration-150`,
-          dragging ? 'border-primary bg-primary/5' : 'border-white/10',
+          'flex items-end gap-1.5 p-1.5 transition-colors duration-150',
+          // Focus lights the edge rather than moving anything: the composer is
+          // the one element always on screen, and a shifting outline there is
+          // visible in peripheral vision the whole time you are typing.
+          focused && 'aria-composer-focused',
         )}
+        style={{
+          background: 'var(--bg-surface)',
+          backdropFilter: 'blur(20px)',
+          border: `1px solid ${dragging || focused ? 'var(--border-glow)' : 'var(--border-subtle)'}`,
+          borderRadius: 24,
+        }}
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={() => setFocused(false)}
       >
         {busy ? (
           <Button
@@ -161,19 +221,14 @@ export function VoiceInput({
             <Button
               size="icon"
               variant="ghost"
-              onPointerDown={onMicDown}
-              onPointerUp={onMicUp}
-              // Releasing outside the button must still send: a small drag
-              // while speaking would otherwise discard the recording.
-              onPointerLeave={onMicUp}
-              onPointerCancel={onMicUp}
+              onClick={onMicToggle}
               className={cn(
                 'h-9 w-9 shrink-0 touch-none rounded-full',
                 listening
                   ? 'bg-aria-listening text-white hover:bg-aria-listening/90'
                   : 'text-muted-foreground hover:text-foreground',
               )}
-              aria-label={listening ? 'Release to send' : 'Hold to talk'}
+              aria-label={listening ? 'Stop listening' : 'Start listening'}
             >
               {listening ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -188,7 +243,10 @@ export function VoiceInput({
           <textarea
             ref={ref}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              cancelAutoSubmit();
+              setValue(e.target.value);
+            }}
             onKeyDown={(e) => {
               // Enter sends; Shift+Enter is a newline.
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -222,8 +280,8 @@ export function VoiceInput({
             onDrop={(e) => void handleDrop(e)}
             rows={1}
             placeholder={listening ? 'Listening…' : placeholder}
-            className="aria-scroll w-full resize-none bg-transparent px-2 py-2 text-sm
-              placeholder:text-muted-foreground focus-visible:outline-none"
+            className="aria-scroll aria-composer-input w-full resize-none bg-transparent px-2
+              py-2 text-sm focus-visible:outline-none"
           />
         </div>
 

@@ -131,9 +131,20 @@ fn read_from_disk() -> KeyConfig {
     let Ok(text) = std::fs::read_to_string(&path) else {
         return KeyConfig::default();
     };
+
     // A corrupt or hand-edited file must not stop ARIA from starting; the
     // defaults let the user re-enter a key rather than face a dead app.
-    serde_json::from_str::<KeyConfig>(&text).map(KeyConfig::fill).unwrap_or_default()
+    match serde_json::from_str::<KeyConfig>(&text) {
+        Ok(config) => config.fill(),
+        Err(_) => {
+            // Falling back to defaults means the next `set_key` writes those
+            // defaults over the file — so the keys inside it would be gone
+            // before the user learned it had failed to parse. Move it aside
+            // first; the credentials are recoverable by hand from the copy.
+            let _ = std::fs::rename(&path, path.with_extension("json.unreadable"));
+            KeyConfig::default()
+        }
+    }
 }
 
 /// Read the config into memory. Called once, before the window is shown.
@@ -435,7 +446,22 @@ pub async fn reconcile_openrouter_model() -> JResult<Option<String>> {
         return Ok(None);
     }
 
-    let config = current();
+    let mut config = current();
+
+    // Configs written before `openrouter_model` existed carry the choice in
+    // `model` instead. If that is still being served, it is the saved model —
+    // adopt it rather than re-picking and moving the user off something that
+    // works.
+    if config.openrouter_model.is_empty()
+        && config.active_provider == "openrouter"
+        && models.iter().any(|m| m.id == config.model)
+    {
+        config.openrouter_model = config.model.clone();
+        write_to_disk(&config)?;
+        *CONFIG.write().unwrap() = Some(config);
+        return Ok(None);
+    }
+
     let saved = &config.openrouter_model;
     let still_listed = !saved.is_empty() && models.iter().any(|m| &m.id == saved);
     if still_listed {
@@ -446,7 +472,6 @@ pub async fn reconcile_openrouter_model() -> JResult<Option<String>> {
         return Ok(None);
     };
 
-    let mut config = config;
     config.openrouter_model = chosen.clone();
     // Only move the live model if OpenRouter is the provider in use; another
     // provider's model must not be replaced with an OpenRouter id.
@@ -483,6 +508,15 @@ pub async fn demo_script() -> JResult<Option<Vec<String>>> {
         "open firefox".into(),
         "what time is it".into(),
     ]))
+}
+
+/// The stored key for one provider, or empty if there is none.
+///
+/// For Rust callers that need a credential without going through a command —
+/// hosted transcription, for instance, which is reached from the voice module
+/// rather than from the frontend.
+pub fn key_for(provider: &str) -> String {
+    current().keys.get(provider).cloned().unwrap_or_default()
 }
 
 #[tauri::command]

@@ -40,14 +40,49 @@ const N_MFCC: usize = 13;
 const WINDOW_SECONDS: f32 = 1.6;
 const WINDOW_SAMPLES: usize = (SAMPLE_RATE as f32 * WINDOW_SECONDS) as usize;
 
-/// Below this the window is silence and is not worth scoring.
+/// Below this the audio is silence and is not worth scoring.
 const SILENCE_RMS: f32 = 0.012;
+
+/// Block length for [`peak_rms`], in samples at 16 kHz — about 100 ms.
+///
+/// Short enough that a single word dominates its own block, long enough that a
+/// door closing does not become a block on its own.
+const PEAK_BLOCK: usize = 1_600;
+
+/// The loudest 100 ms in a run of audio, as RMS.
+///
+/// The detection window is 1.6 s but a wake word only occupies a third of it.
+/// Averaging energy across the whole window divides the speech by the silence
+/// around it, so a word said at a perfectly normal level lands under
+/// [`SILENCE_RMS`] and is discarded before it is ever scored — which is
+/// indistinguishable from the wake word not working.
+///
+/// Training does not hit this, because there the user is answering a prompt to
+/// speak and fills most of the recording. That asymmetry is exactly why the
+/// wake word could be trained successfully and then never fire.
+fn peak_rms(samples: &[f32]) -> f32 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    samples
+        .chunks(PEAK_BLOCK)
+        // A trailing part-block is noise-prone and never the loudest part of a
+        // word; skipping it keeps the measure stable.
+        .filter(|c| c.len() >= PEAK_BLOCK / 2)
+        .map(|c| (c.iter().map(|s| s * s).sum::<f32>() / c.len() as f32).sqrt())
+        .fold(0.0, f32::max)
+}
 
 /// Sensitivity, 1-10 from the UI, held as an integer for atomic access.
 static SENSITIVITY: AtomicU32 = AtomicU32::new(7);
 static RUNNING: AtomicBool = AtomicBool::new(false);
 /// Set while the main recorder owns the microphone.
 static PAUSED: AtomicBool = AtomicBool::new(false);
+/// True while the listener actually holds an open input stream.
+///
+/// [`pause`] waits on this, so the recorder never tries to open the device
+/// while the listener still has it.
+static HOLDS_DEVICE: AtomicBool = AtomicBool::new(false);
 
 /// Handle to the listener thread, so it can be stopped and joined.
 static SESSION: Mutex<Option<mpsc::Receiver<()>>> = Mutex::new(None);
@@ -326,13 +361,136 @@ pub async fn set_wake_word_sensitivity(threshold: u32) -> JResult<()> {
     Ok(())
 }
 
-/// Stop scoring while the main recorder has the microphone.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Calibration {
+    /// Closest the room alone came to matching the wake word.
+    pub ambient_best: f32,
+    /// The ceiling this produced, after headroom and clamping.
+    pub threshold: f32,
+    /// What the threshold was before calibrating.
+    pub previous: f32,
+    /// How many windows were loud enough to be worth scoring.
+    pub windows_scored: usize,
+    pub detail: String,
+}
+
+/// Measure the room and set the firing threshold from it.
 ///
-/// Two cpal input streams on one device either fail to open or fight over it,
-/// and scoring the user's actual question for the wake word would be wasted
-/// work regardless.
+/// Records a few seconds of whatever is happening, scores every window against
+/// the stored templates exactly as the listener does, and puts the ceiling just
+/// below the closest false match. The listener is stopped for the duration so
+/// it is not competing for the device, and restarted afterwards if it had been
+/// running.
+#[tauri::command]
+pub async fn calibrate_wake_word(word: String, seconds: Option<f32>) -> JResult<Calibration> {
+    let templates = load_templates(&word);
+    if templates.is_empty() {
+        return Err(AriaError::msg(format!(
+            "ARIA needs to hear you say \"{word}\" once before it can calibrate. \
+             Record a sample first."
+        )));
+    }
+
+    let was_running = RUNNING.load(Ordering::Relaxed);
+    if was_running {
+        stop_wake_word().await?;
+    }
+
+    let seconds = seconds.unwrap_or(5.0).clamp(2.0, 15.0);
+    let captured = tokio::task::spawn_blocking(move || {
+        record_window(Duration::from_secs_f32(seconds))
+    })
+    .await
+    .map_err(|e| AriaError::msg(format!("calibration recording failed: {e}")))??;
+
+    let previous = threshold_for(SENSITIVITY.load(Ordering::Relaxed));
+
+    let filters = mel_filterbank(FRAME_LEN.next_power_of_two());
+    let mut planner = FftPlanner::new();
+
+    let step = WINDOW_SAMPLES / 4;
+    let mut best = f32::MAX;
+    let mut scored = 0usize;
+    let mut start = 0usize;
+
+    while start + WINDOW_SAMPLES <= captured.len() {
+        let window = &captured[start..start + WINDOW_SAMPLES];
+        let rms = (window.iter().map(|s| s * s).sum::<f32>() / window.len() as f32).sqrt();
+        if rms >= SILENCE_RMS {
+            let frames = mfcc(window, &filters, &mut planner);
+            if !frames.is_empty() {
+                let d = templates.iter().map(|t| dtw(&frames, t)).fold(f32::MAX, f32::min);
+                best = best.min(d);
+                scored += 1;
+            }
+        }
+        start += step;
+    }
+
+    // A silent room proves nothing about where the ceiling belongs, so the
+    // existing threshold is kept rather than replaced with a guess.
+    if scored == 0 || !best.is_finite() {
+        if was_running {
+            // Restarting needs an AppHandle, which this command does not hold;
+            // the frontend restarts the listener after calibrating.
+        }
+        return Ok(Calibration {
+            ambient_best: 0.0,
+            threshold: previous,
+            previous,
+            windows_scored: 0,
+            detail: "The room was silent, so there was nothing to calibrate against. \
+                     The existing threshold was kept — try again with normal background \
+                     noise."
+                .into(),
+        });
+    }
+
+    let threshold = (best * (1.0 - CALIBRATION_HEADROOM)).clamp(CALIBRATION_MIN, CALIBRATION_MAX);
+    CALIBRATED.store((threshold * 1_000.0) as u32, Ordering::Relaxed);
+    if let Ok(path) = calibration_path() {
+        let _ = std::fs::write(path, threshold.to_string());
+    }
+
+    Ok(Calibration {
+        ambient_best: best,
+        threshold,
+        previous,
+        windows_scored: scored,
+        detail: format!(
+            "Room measured over {scored} windows; closest false match {best:.1}. \
+             Threshold moved from {previous:.1} to {threshold:.1}."
+        ),
+    })
+}
+
+/// Hand the microphone to the main recorder.
+///
+/// This used to set a flag that only made the listener *discard* the audio it
+/// was still capturing — the cpal input stream stayed open for the life of the
+/// thread. On any backend that does not transparently share a capture device
+/// (raw ALSA being the common one) that left the device held, so
+/// `start_capture` could not open it and every wake fired into a recorder that
+/// failed to start. Nothing was heard, which looked exactly like the wake word
+/// not working.
+///
+/// The listener now drops its stream when this is set and rebuilds it on
+/// [`resume`], so the device is genuinely free in between. Blocks until the
+/// stream is actually gone: returning while it is still open would put us back
+/// in the race this exists to remove.
 pub fn pause() {
     PAUSED.store(true, Ordering::Relaxed);
+    if !RUNNING.load(Ordering::Relaxed) {
+        return;
+    }
+    // The listener checks the flag between 300 ms scoring sleeps, so this
+    // normally returns on the first or second poll. The ceiling means a wedged
+    // audio backend delays the recording rather than hanging the caller.
+    let deadline = Instant::now() + Duration::from_millis(1_200);
+    while HOLDS_DEVICE.load(Ordering::Relaxed) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
 }
 
 pub fn resume() {
@@ -376,8 +534,11 @@ pub async fn train_wake_word(word: String, replace: bool) -> JResult<WakeWordSta
         ));
     }
 
-    let rms = (captured.iter().map(|s| s * s).sum::<f32>() / captured.len() as f32).sqrt();
-    if rms < SILENCE_RMS {
+    // Measured the same way the listener measures, so a template can only be
+    // accepted if audio at that level would also be scored later. Judging
+    // training by a mean and detection by a peak is how you end up with a
+    // template that trains cleanly and never matches.
+    if peak_rms(&captured) < SILENCE_RMS {
         return Err(AriaError::msg(
             "ARIA did not hear anything. Check your microphone and try again.",
         ));
@@ -460,7 +621,7 @@ pub async fn start_wake_word(app: AppHandle, word: String) -> JResult<WakeWordSt
 
     let word_for_thread = word.clone();
     std::thread::Builder::new()
-        .name("jarvis-wakeword".into())
+        .name("aria-wakeword".into())
         .spawn(move || {
             listen_loop(app, word_for_thread, templates);
             let _ = finished_tx.send(());
@@ -479,128 +640,233 @@ pub struct Detection {
     pub confidence: f32,
 }
 
-/// The listener. Holds the microphone and scores a sliding window.
-fn listen_loop(app: AppHandle, word: String, templates: Vec<Vec<[f32; N_MFCC]>>) {
+/// Attempts to reopen the device before giving up.
+///
+/// A single failure is usually the recorder still letting go, not a missing
+/// microphone; retrying turns that into a short gap in coverage instead of
+/// permanently killing the listener.
+const OPEN_ATTEMPTS: u32 = 5;
+
+/// The rolling capture buffer, shared with the audio callback.
+type Window = Arc<Mutex<Vec<f32>>>;
+
+/// Open the input device and start filling a rolling window from it.
+///
+/// The stream is returned rather than kept, because a cpal stream is `!Send`
+/// and closing it is what releases the device — which is the whole point of
+/// building it per pause cycle rather than once per session.
+fn open_listener() -> JResult<(cpal::Stream, Window, usize)> {
     let host = cpal::default_host();
-    let Some(device) = host.default_input_device() else {
-        RUNNING.store(false, Ordering::Relaxed);
-        let _ = app.emit("wake-word-error", "No microphone was found.");
-        return;
-    };
-    let Ok(supported) = device.default_input_config() else {
-        RUNNING.store(false, Ordering::Relaxed);
-        let _ = app.emit("wake-word-error", "The microphone could not be opened.");
-        return;
-    };
+    let device = host
+        .default_input_device()
+        .ok_or_else(|| AriaError::msg("No microphone was found."))?;
+    let supported = device
+        .default_input_config()
+        .map_err(|e| AriaError::msg(format!("The microphone could not be opened: {e}")))?;
 
     let source_rate = supported.sample_rate().0 as usize;
-    let buffer = Arc::new(Mutex::new(Vec::<f32>::with_capacity(WINDOW_SAMPLES * 2)));
+    let buffer: Window = Arc::new(Mutex::new(Vec::with_capacity(WINDOW_SAMPLES * 2)));
     let sink = buffer.clone();
 
-    let stream = match open_stream(&device, &supported, move |block| {
-        // Dropping audio while paused keeps the buffer from filling with the
-        // user's actual question while the recorder has the device.
-        if PAUSED.load(Ordering::Relaxed) {
-            return;
-        }
+    let stream = open_stream(&device, &supported, move |block| {
         let mut guard = lock(&sink);
         guard.extend_from_slice(block);
-        // Bounded: this thread runs for the life of the app.
+        // Bounded: this stream lives as long as the listener is unpaused.
         let cap = WINDOW_SAMPLES * 3;
         if guard.len() > cap {
             let excess = guard.len() - cap;
             guard.drain(..excess);
         }
-    }) {
-        Ok(s) => s,
-        Err(e) => {
-            RUNNING.store(false, Ordering::Relaxed);
-            let _ = app.emit("wake-word-error", e.to_string());
-            return;
-        }
-    };
+    })?;
+    stream
+        .play()
+        .map_err(|e| AriaError::msg(format!("The microphone could not be started: {e}")))?;
 
-    if stream.play().is_err() {
-        RUNNING.store(false, Ordering::Relaxed);
-        let _ = app.emit("wake-word-error", "The microphone could not be started.");
-        return;
-    }
+    Ok((stream, buffer, source_rate))
+}
 
+/// The listener. Holds the microphone and scores a sliding window.
+///
+/// The device is acquired and released around each pause, so while the user is
+/// dictating, this thread holds nothing — see [`pause`] for why that matters.
+fn listen_loop(app: AppHandle, word: String, templates: Vec<Vec<[f32; N_MFCC]>>) {
     let filters = mel_filterbank(FRAME_LEN.next_power_of_two());
     let mut planner = FftPlanner::new();
     // After a hit, ignore the next second: the same utterance would otherwise
-    // match several overlapping windows and fire repeatedly.
+    // match several overlapping windows and fire repeatedly. Kept across pause
+    // cycles so waking does not immediately re-arm on its own echo.
     let mut cooldown_until = Instant::now();
+    let mut failures = 0u32;
 
     while RUNNING.load(Ordering::Relaxed) {
-        // Scoring three times a second is responsive enough to feel immediate
-        // while leaving the CPU idle in between.
-        std::thread::sleep(Duration::from_millis(300));
-
-        if PAUSED.load(Ordering::Relaxed) || Instant::now() < cooldown_until {
+        if PAUSED.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(60));
             continue;
         }
 
-        let window: Vec<f32> = {
-            let guard = lock(&buffer);
-            let needed = (WINDOW_SAMPLES as f32 * source_rate as f32 / SAMPLE_RATE as f32) as usize;
-            if guard.len() < needed {
+        let (stream, buffer, source_rate) = match open_listener() {
+            Ok(opened) => {
+                failures = 0;
+                opened
+            }
+            Err(e) => {
+                failures += 1;
+                if failures >= OPEN_ATTEMPTS {
+                    RUNNING.store(false, Ordering::Relaxed);
+                    let _ = app.emit("wake-word-error", e.to_string());
+                    return;
+                }
+                // Most likely the recorder has not finished releasing it.
+                std::thread::sleep(Duration::from_millis(400));
                 continue;
             }
-            guard[guard.len() - needed..].to_vec()
         };
+        HOLDS_DEVICE.store(true, Ordering::Relaxed);
 
-        let window = resample(&window, source_rate);
+        while RUNNING.load(Ordering::Relaxed) && !PAUSED.load(Ordering::Relaxed) {
+            // Scoring three times a second is responsive enough to feel
+            // immediate while leaving the CPU idle in between.
+            std::thread::sleep(Duration::from_millis(300));
 
-        // Silence is the overwhelmingly common case; rejecting it on a cheap
-        // RMS check is what keeps idle CPU near zero.
-        let rms = (window.iter().map(|s| s * s).sum::<f32>() / window.len().max(1) as f32).sqrt();
-        if rms < SILENCE_RMS {
-            continue;
-        }
-
-        let frames = mfcc(&window, &filters, &mut planner);
-        if frames.is_empty() {
-            continue;
-        }
-
-        let best = templates
-            .iter()
-            .map(|t| dtw(&frames, t))
-            .fold(f32::MAX, f32::min);
-
-        if best <= threshold_for(SENSITIVITY.load(Ordering::Relaxed)) {
-            cooldown_until = Instant::now() + Duration::from_millis(1_500);
-
-            // Bring the window forward: the point of a wake word is that it
-            // works when the app is not in front of you.
-            if let Some(main) = app.get_webview_window("main") {
-                let _ = main.show();
-                let _ = main.unminimize();
-                let _ = main.set_focus();
+            if PAUSED.load(Ordering::Relaxed) || Instant::now() < cooldown_until {
+                continue;
             }
 
-            let _ = app.emit(
-                "wake-word-detected",
-                Detection {
-                    word: word.clone(),
-                    confidence: confidence_from(best),
-                },
-            );
+            let window: Vec<f32> = {
+                let guard = lock(&buffer);
+                let needed =
+                    (WINDOW_SAMPLES as f32 * source_rate as f32 / SAMPLE_RATE as f32) as usize;
+                if guard.len() < needed {
+                    continue;
+                }
+                guard[guard.len() - needed..].to_vec()
+            };
+
+            let window = resample(&window, source_rate);
+
+            // Silence is the overwhelmingly common case; rejecting it on a
+            // cheap energy check is what keeps idle CPU near zero. Measured as
+            // the loudest 100 ms rather than the mean, or the silence
+            // surrounding a short word swamps the word itself.
+            if peak_rms(&window) < SILENCE_RMS {
+                continue;
+            }
+
+            let frames = mfcc(&window, &filters, &mut planner);
+            if frames.is_empty() {
+                continue;
+            }
+
+            let best = templates
+                .iter()
+                .map(|t| dtw(&frames, t))
+                .fold(f32::MAX, f32::min);
+
+            if best <= threshold_for(SENSITIVITY.load(Ordering::Relaxed)) {
+                cooldown_until = Instant::now() + Duration::from_millis(1_500);
+
+                // Clear the buffer, or the wake word itself stays in the window
+                // and is transcribed as the opening of the user's request.
+                lock(&buffer).clear();
+
+                // Bring the window forward: the point of a wake word is that it
+                // works when the app is not in front of you.
+                if let Some(main) = app.get_webview_window("main") {
+                    let _ = main.show();
+                    let _ = main.unminimize();
+                    let _ = main.set_focus();
+                }
+
+                let _ = app.emit(
+                    "wake-word-detected",
+                    Detection {
+                        word: word.clone(),
+                        confidence: confidence_from(best),
+                    },
+                );
+
+                // The frontend is about to open the recorder on this same
+                // device. Release it now rather than making `pause` wait out a
+                // scoring sleep first.
+                break;
+            }
+        }
+
+        drop(stream);
+        HOLDS_DEVICE.store(false, Ordering::Relaxed);
+
+        // Give the recorder a moment to claim the device after a wake, rather
+        // than grabbing it back the instant we let go. If the frontend never
+        // starts recording — voice input is off, or it failed — the wait ends
+        // and normal listening resumes.
+        let grace = Instant::now() + Duration::from_millis(1_500);
+        while RUNNING.load(Ordering::Relaxed)
+            && !PAUSED.load(Ordering::Relaxed)
+            && Instant::now() < grace
+            && Instant::now() < cooldown_until
+        {
+            std::thread::sleep(Duration::from_millis(50));
         }
     }
+}
 
-    drop(stream);
+/// A calibrated distance ceiling, in thousandths, or 0 when uncalibrated.
+///
+/// Held as an integer so it can live in an atomic and be read from the audio
+/// loop without a lock.
+static CALIBRATED: AtomicU32 = AtomicU32::new(0);
+
+/// Headroom below the closest thing the room alone scored.
+///
+/// The brief asked for the threshold to sit at "ambient + 15%". That is the
+/// wrong direction for this metric: DTW distance is a *distance*, so a lower
+/// number is a better match and ambient noise scores far *above* the ceiling,
+/// not below it. Putting the ceiling above ambient would fire continuously on
+/// an empty room. The useful calibration is the mirror image — sit 15% below
+/// the quietest false match, which is as loose as the threshold can be while
+/// still ignoring this room.
+const CALIBRATION_HEADROOM: f32 = 0.15;
+
+/// Never calibrate outside this band.
+///
+/// A silent room can score arbitrarily high, which would otherwise yield a
+/// ceiling that accepts any speech at all; a very noisy one can score low
+/// enough to make the spotter deaf.
+const CALIBRATION_MIN: f32 = 4.0;
+const CALIBRATION_MAX: f32 = 22.0;
+
+/// Where the calibrated threshold is remembered between runs.
+fn calibration_path() -> JResult<std::path::PathBuf> {
+    Ok(crate::util::data_subdir("wakeword")?.join("calibration.json"))
+}
+
+/// Load a previously calibrated threshold into the atomic, if one was saved.
+pub fn load_calibration() {
+    let Ok(path) = calibration_path() else { return };
+    let Ok(text) = std::fs::read_to_string(path) else { return };
+    if let Ok(value) = serde_json::from_str::<f32>(&text) {
+        if value.is_finite() && value > 0.0 {
+            CALIBRATED.store((value * 1_000.0) as u32, Ordering::Relaxed);
+        }
+    }
 }
 
 /// Sensitivity 1-10 to a DTW distance ceiling.
 ///
-/// Higher sensitivity accepts a looser match. The range is deliberately narrow:
-/// past roughly 10 the spotter starts accepting any similarly-shaped word, and
-/// "Travis" is exactly that.
+/// Higher sensitivity accepts a looser match. Once calibrated, the band is
+/// rebuilt around the measured ceiling instead of the built-in constants: the
+/// defaults were tuned against synthesised vowels, and on a real microphone in
+/// a real room they sat far tighter than any genuine utterance could reach.
+/// Sensitivity still moves the threshold, it just moves it within a range that
+/// this machine has been shown to support.
 fn threshold_for(sensitivity: u32) -> f32 {
     let s = sensitivity.clamp(1, 10) as f32;
-    3.0 + s * 0.7
+    let calibrated = CALIBRATED.load(Ordering::Relaxed) as f32 / 1_000.0;
+    if calibrated <= 0.0 {
+        return 3.0 + s * 0.7;
+    }
+    // Sensitivity 10 reaches the calibrated ceiling; 1 sits at 40% of it.
+    calibrated * (0.4 + 0.06 * (s - 1.0))
 }
 
 fn confidence_from(distance: f32) -> f32 {
@@ -631,6 +897,32 @@ pub fn probe_score(template: &[f32], candidate: &[f32]) -> f32 {
 /// The distance ceiling for a sensitivity setting.
 pub fn probe_threshold(sensitivity: u32) -> f32 {
     threshold_for(sensitivity)
+}
+
+/// The loudest 100 ms of a run of audio, as the listener measures it.
+pub fn probe_peak_rms(samples: &[f32]) -> f32 {
+    peak_rms(samples)
+}
+
+/// The energy floor below which audio is discarded unscored.
+pub fn probe_silence_floor() -> f32 {
+    SILENCE_RMS
+}
+
+/// The stored templates for a word, as the listener loads them.
+pub fn probe_templates(word: &str) -> Vec<Vec<[f32; N_MFCC]>> {
+    load_templates(word)
+}
+
+/// Score a window against stored templates, exactly as the listener does.
+pub fn probe_score_frames(templates: &[Vec<[f32; N_MFCC]>], window: &[f32]) -> f32 {
+    let filters = mel_filterbank(FRAME_LEN.next_power_of_two());
+    let mut planner = FftPlanner::new();
+    let frames = mfcc(window, &filters, &mut planner);
+    if frames.is_empty() {
+        return f32::MAX;
+    }
+    templates.iter().map(|t| dtw(&frames, t)).fold(f32::MAX, f32::min)
 }
 
 #[cfg(test)]
@@ -775,6 +1067,47 @@ mod tests {
         // Out-of-range values from the UI must not widen it further.
         assert_eq!(threshold_for(99), high);
         assert_eq!(threshold_for(0), low);
+    }
+
+    /// The bug this file's silence gate had: a word occupies about a third of
+    /// the 1.6 s detection window, so averaging energy across the whole window
+    /// divides speech by the silence around it. Normal-level speech landed
+    /// under the floor and was discarded before it could be scored — the wake
+    /// word trained fine and then never fired.
+    #[test]
+    fn a_short_word_in_a_quiet_window_survives_the_silence_gate() {
+        // 0.5s of speech at a quiet but perfectly audible level — 1.5x the
+        // floor, which a laptop microphone reaches easily — then 1.1s of
+        // near-silence. One utterance, one detection window.
+        let target = SILENCE_RMS * 1.5;
+        let raw = tone(AH, 0.5);
+        let raw_level = (raw.iter().map(|s| s * s).sum::<f32>() / raw.len() as f32).sqrt();
+        let speech: Vec<f32> = raw.iter().map(|s| s * target / raw_level).collect();
+
+        let level = (speech.iter().map(|s| s * s).sum::<f32>() / speech.len() as f32).sqrt();
+        assert!(level > SILENCE_RMS, "test signal must itself be audible ({level})");
+
+        let mut window = speech;
+        window.extend(std::iter::repeat_n(0.0005f32, (SAMPLE_RATE as f32 * 1.1) as usize));
+
+        let mean = (window.iter().map(|s| s * s).sum::<f32>() / window.len() as f32).sqrt();
+        assert!(
+            mean < SILENCE_RMS,
+            "the mean should be diluted below the floor — that was the bug ({mean})"
+        );
+        assert!(
+            peak_rms(&window) >= SILENCE_RMS,
+            "the loudest 100ms must still clear the floor, or the word is never scored"
+        );
+    }
+
+    #[test]
+    fn a_genuinely_silent_window_is_still_rejected() {
+        // The peak measure must not turn every quiet room into a wake. A real
+        // quiet room on the development machine peaks around 0.003.
+        let quiet: Vec<f32> = (0..SAMPLE_RATE * 2).map(|i| ((i % 7) as f32 - 3.0) * 0.001).collect();
+        assert!(peak_rms(&quiet) < SILENCE_RMS, "background noise must not score");
+        assert_eq!(peak_rms(&[]), 0.0);
     }
 
     #[test]

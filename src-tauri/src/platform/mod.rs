@@ -6,32 +6,12 @@
 pub mod detect;
 pub mod env;
 pub mod input;
-pub mod macos;
-#[cfg(target_os = "linux")]
 pub mod portal;
-
-/// Stub for the non-Linux builds.
-///
-/// The `wayland` module is compiled on every target — the dispatch table below
-/// has to typecheck all of its arms regardless of which one can run — so the
-/// portal it calls has to exist everywhere too, even though only Linux has one.
-#[cfg(not(target_os = "linux"))]
-pub mod portal {
-    use crate::util::{JResult, AriaError};
-
-    pub async fn screenshot() -> JResult<Vec<u8>> {
-        Err(AriaError::msg(
-            "xdg-desktop-portal exists only on Linux desktops.",
-        ))
-    }
-}
-
 pub mod wayland;
-pub mod windows;
 pub mod x11;
 
 use crate::util::{JResult, AriaError};
-use detect::{OsKind, PlatformInfo, SessionType};
+use detect::{PlatformInfo, SessionType};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -44,25 +24,21 @@ pub fn info() -> &'static PlatformInfo {
 }
 
 /// Which family of helper tools to use.
+///
+/// This build targets Linux only, so the choice is between the two session
+/// types rather than between operating systems.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
     Wayland,
     X11,
-    Windows,
-    Macos,
 }
 
 pub fn backend() -> Backend {
-    let i = info();
-    match i.os {
-        OsKind::Windows => Backend::Windows,
-        OsKind::Macos => Backend::Macos,
-        OsKind::Linux => match i.session_type {
-            SessionType::Wayland => Backend::Wayland,
-            // A headless/unknown Linux session still has the best chance with
-            // the X11 tools, which work over XWayland too.
-            _ => Backend::X11,
-        },
+    match info().session_type {
+        SessionType::Wayland => Backend::Wayland,
+        // A headless or unrecognised session still has the best chance with
+        // the X11 tools, which work over XWayland too.
+        _ => Backend::X11,
     }
 }
 
@@ -119,8 +95,6 @@ macro_rules! dispatch {
         match backend() {
             Backend::Wayland => wayland::$fn_name($($arg),*).await,
             Backend::X11 => x11::$fn_name($($arg),*).await,
-            Backend::Windows => windows::$fn_name($($arg),*).await,
-            Backend::Macos => macos::$fn_name($($arg),*).await,
         }
     };
 }

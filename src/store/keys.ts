@@ -66,14 +66,6 @@ export interface FreeModel {
   vision: boolean;
 }
 
-/**
- * Used when OpenRouter cannot be reached.
- *
- * Kept in step with OPENROUTER_FALLBACK_MODEL in the Rust key module; a Rust
- * test hits the live catalogue and fails if this id stops being free.
- */
-export const OPENROUTER_FALLBACK_MODEL = 'google/gemma-4-26b-a4b-it:free';
-
 interface KeyState {
   loaded: boolean;
   activeProvider: Provider;
@@ -84,7 +76,13 @@ interface KeyState {
   /** OpenRouter's free catalogue, fetched when the settings page opens. */
   freeModels: FreeModel[];
   freeModelsState: 'idle' | 'loading' | 'ready' | 'failed';
+  /** Re-fetch the catalogue. Called every time the key settings open. */
   loadFreeModels: () => Promise<void>;
+  /**
+   * Ask Rust to reconcile the saved OpenRouter model against the live
+   * catalogue, and adopt whatever it settles on.
+   */
+  reconcileOpenRouterModel: () => Promise<void>;
 
   load: () => Promise<void>;
   saveKey: (provider: Provider, key: string) => Promise<boolean>;
@@ -95,9 +93,15 @@ interface KeyState {
   ready: () => boolean;
 }
 
+/**
+ * Only ever seen before Rust answers, or in the browser build where there is
+ * no Rust at all. Deliberately not an OpenRouter id: OpenRouter's free
+ * catalogue rotates, every id ever hardcoded for it has since been withdrawn,
+ * and its model is resolved from the live list instead.
+ */
 const DEFAULTS: Pick<KeyState, 'activeProvider' | 'model' | 'keys' | 'status' | 'messages'> = {
   activeProvider: 'bytez',
-  model: OPENROUTER_FALLBACK_MODEL,
+  model: 'google/gemma-2-9b-it',
   keys: Object.fromEntries(PROVIDERS.map((p) => [p, ''])),
   status: Object.fromEntries(PROVIDERS.map((p) => [p, 'unset' as CheckState])),
   messages: {},
@@ -111,10 +115,10 @@ export const useKeys = create<KeyState>((set, get) => ({
 
   async loadFreeModels() {
     if (!isTauri) return;
-    // Already have them, or a fetch is in flight: opening the settings page
-    // twice should not mean fetching the catalogue twice.
-    const { freeModelsState } = get();
-    if (freeModelsState === 'loading' || freeModelsState === 'ready') return;
+    // Refetched every time the page opens — OpenRouter withdraws free models
+    // without notice, and a cached list is how the dropdown ends up offering
+    // an id that no longer resolves. Only an in-flight fetch is skipped.
+    if (get().freeModelsState === 'loading') return;
 
     set({ freeModelsState: 'loading' });
     try {
@@ -130,6 +134,15 @@ export const useKeys = create<KeyState>((set, get) => ({
     } catch {
       set({ freeModelsState: 'failed' });
     }
+  },
+
+  async reconcileOpenRouterModel() {
+    if (!isTauri) return;
+    const { invoke } = await import('@tauri-apps/api/core');
+    // Rust returns the id only when it actually changed something, so a
+    // no-op reconciliation leaves the UI alone.
+    const chosen = await invoke<string | null>('reconcile_openrouter_model').catch(() => null);
+    if (chosen && get().activeProvider === 'openrouter') set({ model: chosen });
   },
 
   async load() {

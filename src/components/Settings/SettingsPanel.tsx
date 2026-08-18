@@ -26,6 +26,7 @@ import { modelsFor } from '@/core/modelLimits';
 import { clearAllHistory } from '@/core/memory';
 import { isDesktop, isMobile } from '@/platform';
 import { KeysPage } from './KeysPage';
+import { VoicePage } from './VoicePage';
 import { WakeWordSettings } from './WakeWordSettings';
 import { TrainingSection } from './TrainingSection';
 import { MyModel } from './MyModel';
@@ -472,6 +473,11 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
         </TabsContent>
 
         <TabsContent value="voice" className="space-y-5">
+          {/* Engine status, provisioning and calibration. Placed first
+              because it answers "why is nothing happening" — the rest of this
+              tab is preferences that only matter once STT works at all. */}
+          {isDesktop && <VoicePage />}
+
           <Row
             label="Speak replies aloud"
             description="Read every answer out through the speaker"

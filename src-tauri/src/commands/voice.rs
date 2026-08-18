@@ -11,11 +11,54 @@ use base64::Engine;
 use serde::Serialize;
 
 /// Where the setup wizard puts downloaded models and sidecar binaries.
+///
+/// This is the legacy location. New downloads go to [`whisper_dir`], under the
+/// same data directory as every other model, but this is still searched so a
+/// model fetched by an older build is not stranded.
 pub fn models_dir() -> std::path::PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| expand_path("~/.local/share"))
         .join("aria")
         .join("models")
+}
+
+/// Where whisper models live now: alongside the LLM weights, under the data
+/// directory that already honours an existing `~/.jarvis`.
+///
+/// Deliberately not a fixed `~/.aria/models` path — `data_subdir` prefers a
+/// `~/.jarvis` that already exists, and hardcoding the new name would strand
+/// the gigabyte of models sitting there.
+pub fn whisper_dir() -> JResult<std::path::PathBuf> {
+    crate::util::data_subdir("models/whisper")
+}
+
+/// The model files ARIA knows how to use, smallest first.
+///
+/// `base.en` is the download offered in the UI: `tiny.en` is noticeably worse
+/// at proper nouns and command words, which is most of what gets dictated
+/// here, and `small.en` is three times the size for a marginal gain.
+const WHISPER_MODELS: [&str; 3] = ["ggml-base.en.bin", "ggml-tiny.en.bin", "ggml-small.en.bin"];
+
+/// The whisper.cpp executable, under whichever name it was built with.
+const WHISPER_BINARIES: [&str; 4] = ["whisper-cli", "whisper.cpp", "whisper", "main"];
+
+/// Find a whisper model in either the current or the legacy location.
+fn find_whisper_model() -> Option<std::path::PathBuf> {
+    let mut roots = Vec::new();
+    if let Ok(dir) = whisper_dir() {
+        roots.push(dir);
+    }
+    roots.push(models_dir());
+
+    for root in roots {
+        for name in WHISPER_MODELS {
+            let path = root.join(name);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+    None
 }
 
 fn bin_dir() -> std::path::PathBuf {
@@ -77,27 +120,110 @@ fn native_tts_binary() -> Option<String> {
 
 /* ── Speech to text ─────────────────────────────────────────────── */
 
+/// Which engine will actually handle the next dictation.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SttMethod {
+    /// whisper.cpp on this machine. Nothing leaves the device.
+    Offline,
+    /// OpenAI's hosted Whisper, billed to the user's own key.
+    Api,
+    /// Neither is available; dictation cannot work.
+    None,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SttStatus {
+    pub method: SttMethod,
+    pub binary: Option<String>,
+    pub model: Option<String>,
+    /// Where a downloaded model is written.
+    pub model_dir: String,
+    /// True when an OpenAI key is stored, so the hosted route is usable.
+    pub has_openai_key: bool,
+    /// Whether `cmake` and `git` are present to build the sidecar.
+    pub can_build: bool,
+    /// One line explaining the current state, written for the user.
+    pub detail: String,
+}
+
+/// What ARIA would use to transcribe right now, and why.
+#[tauri::command]
+pub async fn stt_status() -> JResult<SttStatus> {
+    let binary = find_sidecar(&WHISPER_BINARIES);
+    let model = find_whisper_model();
+    let has_openai_key = !super::keys::key_for("openai").is_empty();
+    let can_build = first_available(&["cmake"]).is_some() && first_available(&["git"]).is_some();
+
+    let (method, detail) = match (&binary, &model) {
+        (Some(_), Some(_)) => (
+            SttMethod::Offline,
+            "Offline — whisper.cpp on this machine. Nothing leaves the device.".to_string(),
+        ),
+        (Some(_), None) => {
+            if has_openai_key {
+                (
+                    SttMethod::Api,
+                    "Using OpenAI Whisper — the sidecar is built but has no model. \
+                     Download one below to go fully offline."
+                        .to_string(),
+                )
+            } else {
+                (
+                    SttMethod::None,
+                    "whisper.cpp is built but has no model. Download one below.".to_string(),
+                )
+            }
+        }
+        (None, _) => {
+            if has_openai_key {
+                (
+                    SttMethod::Api,
+                    "Using OpenAI Whisper — your key, your cost. Build the offline \
+                     sidecar below to stop sending audio off this machine."
+                        .to_string(),
+                )
+            } else if can_build {
+                (
+                    SttMethod::None,
+                    "No speech-to-text available. Build the offline sidecar below, \
+                     or add an OpenAI key in Settings → Keys."
+                        .to_string(),
+                )
+            } else {
+                (
+                    SttMethod::None,
+                    "No speech-to-text available. Building the offline sidecar needs \
+                     cmake and git; otherwise add an OpenAI key in Settings → Keys."
+                        .to_string(),
+                )
+            }
+        }
+    };
+
+    Ok(SttStatus {
+        method,
+        binary,
+        model: model.map(|p| p.to_string_lossy().to_string()),
+        model_dir: whisper_dir()
+            .unwrap_or_else(|_| models_dir())
+            .to_string_lossy()
+            .to_string(),
+        has_openai_key,
+        can_build,
+        detail,
+    })
+}
+
 /// Transcribe 16-bit PCM WAV audio supplied as base64.
+///
+/// Offline first, then the user's own OpenAI key, then a message that names
+/// the two ways to fix it. There is deliberately no browser fallback:
+/// WebKitGTK does not implement `SpeechRecognition`, so on the platform this
+/// runs on it was never a fallback, only a silent failure.
 #[tauri::command]
 pub async fn transcribe(audio_base64: String) -> JResult<String> {
-    let binary =
-        find_sidecar(&["whisper-cli", "whisper.cpp", "whisper", "main"]).ok_or_else(|| {
-            AriaError::missing(
-                "whisper-cli",
-                "Offline transcription needs the whisper.cpp sidecar. \
-                 Run `bash scripts/download-models.sh`, or switch the STT engine \
-                 to the browser engine in Settings → Voice.",
-            )
-        })?;
-
-    let model = find_model(&["ggml-tiny.en.bin", "ggml-base.en.bin", "ggml-small.en.bin"])
-        .ok_or_else(|| {
-            AriaError::msg(
-                "No whisper model was found. Run `bash scripts/download-models.sh` \
-                 to fetch ggml-tiny.en.bin.",
-            )
-        })?;
-
     // Strip a data-URL prefix if the frontend sent one.
     let payload = audio_base64
         .split_once("base64,")
@@ -107,8 +233,89 @@ pub async fn transcribe(audio_base64: String) -> JResult<String> {
         .decode(payload)
         .map_err(|e| AriaError::msg(format!("invalid audio payload: {e}")))?;
 
-    let wav = std::env::temp_dir().join(format!("jarvis-stt-{}.wav", std::process::id()));
-    std::fs::write(&wav, &bytes)?;
+    match (find_sidecar(&WHISPER_BINARIES), find_whisper_model()) {
+        (Some(binary), Some(model)) => transcribe_offline(&binary, &model, &bytes).await,
+        _ => {
+            let key = super::keys::key_for("openai");
+            if key.is_empty() {
+                return Err(AriaError::msg(
+                    "No speech-to-text is available. Open Settings → Voice to build the \
+                     offline whisper.cpp sidecar and download a model, or add an OpenAI \
+                     key in Settings → Keys to use hosted Whisper.",
+                ));
+            }
+            transcribe_openai(&key, &bytes).await
+        }
+    }
+}
+
+/// Hosted Whisper, billed to the user's own OpenAI key.
+///
+/// The multipart body is assembled by hand rather than with reqwest's
+/// `multipart` feature: enabling it would pull new transitive dependencies
+/// into a build whose dependency set is deliberately audited, and the format
+/// is four fixed fields.
+async fn transcribe_openai(key: &str, wav: &[u8]) -> JResult<String> {
+    const BOUNDARY: &str = "----ariaform7f3d9c2b1a084e6f";
+
+    let mut body: Vec<u8> = Vec::with_capacity(wav.len() + 512);
+    let mut field = |name: &str, value: &str| {
+        body.extend_from_slice(format!("--{BOUNDARY}\r\n").as_bytes());
+        body.extend_from_slice(
+            format!("Content-Disposition: form-data; name=\"{name}\"\r\n\r\n").as_bytes(),
+        );
+        body.extend_from_slice(value.as_bytes());
+        body.extend_from_slice(b"\r\n");
+    };
+    field("model", "whisper-1");
+    field("language", "en");
+    field("response_format", "text");
+
+    body.extend_from_slice(format!("--{BOUNDARY}\r\n").as_bytes());
+    body.extend_from_slice(
+        b"Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n",
+    );
+    body.extend_from_slice(b"Content-Type: audio/wav\r\n\r\n");
+    body.extend_from_slice(wav);
+    body.extend_from_slice(format!("\r\n--{BOUNDARY}--\r\n").as_bytes());
+
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| AriaError::msg(e.to_string()))?
+        .post("https://api.openai.com/v1/audio/transcriptions")
+        .bearer_auth(super::llm::clean_key(key))
+        .header(
+            reqwest::header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={BOUNDARY}"),
+        )
+        .body(body)
+        .send()
+        .await
+        .map_err(|_| {
+            AriaError::msg("Could not reach OpenAI to transcribe. Check your connection.")
+        })?;
+
+    let status = response.status();
+    let body = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(AriaError::msg(super::llm::describe_status(
+            "openai",
+            status.as_u16(),
+            &body,
+        )));
+    }
+    Ok(body.trim().to_string())
+}
+
+/// whisper.cpp on this machine.
+async fn transcribe_offline(
+    binary: &str,
+    model: &std::path::Path,
+    bytes: &[u8],
+) -> JResult<String> {
+    let wav = std::env::temp_dir().join(format!("aria-stt-{}.wav", std::process::id()));
+    std::fs::write(&wav, bytes)?;
 
     let args: Vec<String> = vec![
         "-m".into(),
@@ -143,6 +350,255 @@ pub async fn transcribe(audio_base64: String) -> JResult<String> {
         .join(" ");
 
     Ok(text.trim().to_string())
+}
+
+/* ── Provisioning the offline engine ────────────────────────────── */
+
+/// Progress for both the model download and the sidecar build.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WhisperProgress {
+    /// `"downloading"`, `"building"`, `"done"` or `"error"`.
+    pub phase: String,
+    pub percent: f64,
+    pub downloaded: u64,
+    pub total: u64,
+    /// What is happening, in words, for the line under the bar.
+    pub detail: String,
+    pub done: bool,
+    pub error: Option<String>,
+}
+
+fn emit_whisper(app: &tauri::AppHandle, progress: WhisperProgress) {
+    use tauri::Emitter;
+    let _ = app.emit("whisper-progress", progress);
+}
+
+/// The model ARIA offers to download.
+///
+/// `base.en` at ~148 MB is the smallest model that reliably gets command words
+/// and proper nouns right; `tiny.en` saves 70 MB and misses enough of them to
+/// be frustrating for dictation that is mostly instructions.
+const WHISPER_MODEL_URL: &str =
+    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin";
+const WHISPER_MODEL_NAME: &str = "ggml-base.en.bin";
+
+/// Download the whisper model, reporting progress as it goes.
+#[tauri::command]
+pub async fn download_whisper_model(app: tauri::AppHandle) -> JResult<String> {
+    use futures_util::StreamExt;
+    use std::io::Write;
+
+    let dir = whisper_dir()?;
+    let target = dir.join(WHISPER_MODEL_NAME);
+    if target.is_file() {
+        return Ok(target.to_string_lossy().to_string());
+    }
+
+    emit_whisper(
+        &app,
+        WhisperProgress {
+            phase: "downloading".into(),
+            percent: 0.0,
+            downloaded: 0,
+            total: 0,
+            detail: format!("Fetching {WHISPER_MODEL_NAME}"),
+            done: false,
+            error: None,
+        },
+    );
+
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(1_800))
+        .build()
+        .map_err(|e| AriaError::msg(e.to_string()))?
+        .get(WHISPER_MODEL_URL)
+        .send()
+        .await
+        .map_err(|_| {
+            AriaError::msg("Could not reach huggingface.co. Check your connection.")
+        })?;
+
+    if !response.status().is_success() {
+        return Err(AriaError::msg(format!(
+            "The model download failed with HTTP {}.",
+            response.status().as_u16()
+        )));
+    }
+
+    let total = response.content_length().unwrap_or(148_000_000);
+
+    // Written to a part-file and renamed, so an interrupted download cannot
+    // leave a truncated model that whisper would load as garbage.
+    let partial = target.with_extension("bin.part");
+    let mut file = std::fs::File::create(&partial)?;
+    let mut downloaded = 0u64;
+    let mut stream = response.bytes_stream();
+    let mut last_emit = std::time::Instant::now();
+
+    while let Some(chunk) = stream.next().await {
+        let bytes =
+            chunk.map_err(|_| AriaError::msg("The model download was interrupted."))?;
+        file.write_all(&bytes)?;
+        downloaded += bytes.len() as u64;
+
+        // Four updates a second is plenty for a progress bar.
+        if last_emit.elapsed() >= std::time::Duration::from_millis(250) {
+            last_emit = std::time::Instant::now();
+            emit_whisper(
+                &app,
+                WhisperProgress {
+                    phase: "downloading".into(),
+                    percent: (downloaded as f64 / total.max(1) as f64 * 100.0).clamp(0.0, 100.0),
+                    downloaded,
+                    total,
+                    detail: format!(
+                        "{:.0} MB of {:.0} MB",
+                        downloaded as f64 / 1e6,
+                        total as f64 / 1e6
+                    ),
+                    done: false,
+                    error: None,
+                },
+            );
+        }
+    }
+
+    file.flush()?;
+    drop(file);
+    std::fs::rename(&partial, &target)?;
+
+    emit_whisper(
+        &app,
+        WhisperProgress {
+            phase: "done".into(),
+            percent: 100.0,
+            downloaded,
+            total,
+            detail: "Model ready".into(),
+            done: true,
+            error: None,
+        },
+    );
+
+    Ok(target.to_string_lossy().to_string())
+}
+
+/// Build the whisper.cpp sidecar from source.
+///
+/// There is no official prebuilt binary to fetch, so this is the only way to
+/// get offline transcription. It needs `git` and `cmake`; without them the
+/// only route is the user's own OpenAI key, and [`stt_status`] says so.
+#[tauri::command]
+pub async fn build_whisper_sidecar(app: tauri::AppHandle) -> JResult<String> {
+    if let Some(existing) = find_sidecar(&WHISPER_BINARIES) {
+        return Ok(existing);
+    }
+    if first_available(&["git"]).is_none() || first_available(&["cmake"]).is_none() {
+        return Err(AriaError::msg(
+            "Building the offline engine needs git and cmake. Install them, or add an \
+             OpenAI key in Settings → Keys to use hosted Whisper instead.",
+        ));
+    }
+
+    let bin = bin_dir();
+    std::fs::create_dir_all(&bin)?;
+    let build = std::env::temp_dir().join("aria-whisper-build");
+    let _ = std::fs::remove_dir_all(&build);
+
+    let steps: [(&str, Vec<String>, &str); 3] = [
+        (
+            "git",
+            vec![
+                "clone".into(),
+                "--depth".into(),
+                "1".into(),
+                "https://github.com/ggerganov/whisper.cpp".into(),
+                build.to_string_lossy().to_string(),
+            ],
+            "Fetching whisper.cpp source",
+        ),
+        (
+            "cmake",
+            vec![
+                "-B".into(),
+                build.join("build").to_string_lossy().to_string(),
+                "-S".into(),
+                build.to_string_lossy().to_string(),
+                "-DCMAKE_BUILD_TYPE=Release".into(),
+            ],
+            "Configuring the build",
+        ),
+        (
+            "cmake",
+            vec![
+                "--build".into(),
+                build.join("build").to_string_lossy().to_string(),
+                "--config".into(),
+                "Release".into(),
+                "-j".into(),
+            ],
+            "Compiling — this takes a few minutes",
+        ),
+    ];
+
+    for (index, (program, args, detail)) in steps.iter().enumerate() {
+        emit_whisper(
+            &app,
+            WhisperProgress {
+                phase: "building".into(),
+                // Coarse thirds: the compile dominates, and a fake smooth bar
+                // would be less honest than three real milestones.
+                percent: (index as f64 / steps.len() as f64) * 100.0,
+                downloaded: 0,
+                total: 0,
+                detail: (*detail).into(),
+                done: false,
+                error: None,
+            },
+        );
+
+        let out = run_owned(program, args).await?;
+        if !out.ok() {
+            let _ = std::fs::remove_dir_all(&build);
+            return Err(AriaError::msg(format!(
+                "{detail} failed: {}",
+                out.stderr.trim().lines().last().unwrap_or("unknown error")
+            )));
+        }
+    }
+
+    // The executable has moved around between releases; take the first that
+    // exists rather than assuming one layout.
+    let built = ["build/bin/whisper-cli", "build/bin/main", "build/whisper-cli"]
+        .iter()
+        .map(|c| build.join(c))
+        .find(|p| p.is_file())
+        .ok_or_else(|| AriaError::msg("The build finished but produced no whisper binary."))?;
+
+    let installed = bin.join("whisper-cli");
+    std::fs::copy(&built, &installed)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&installed, std::fs::Permissions::from_mode(0o755))?;
+    }
+    let _ = std::fs::remove_dir_all(&build);
+
+    emit_whisper(
+        &app,
+        WhisperProgress {
+            phase: "done".into(),
+            percent: 100.0,
+            downloaded: 0,
+            total: 0,
+            detail: "Offline engine ready".into(),
+            done: true,
+            error: None,
+        },
+    );
+
+    Ok(installed.to_string_lossy().to_string())
 }
 
 /* ── Text to speech ─────────────────────────────────────────────── */

@@ -273,6 +273,9 @@ pub fn run() {
             // bytes, and doing it here means the first message never waits on
             // disk — the frontend finds the keys already in memory.
             commands::keys::load();
+            // A threshold measured against this room on a previous run. Read
+            // here so the listener uses it from its very first window.
+            commands::wakeword::load_calibration();
 
             build_tray(app)?;
             spawn_clipboard_poller(app.handle().clone());
@@ -425,6 +428,7 @@ pub fn run() {
             commands::wakeword::start_wake_word,
             commands::wakeword::stop_wake_word,
             commands::wakeword::set_wake_word_sensitivity,
+            commands::wakeword::calibrate_wake_word,
             commands::wakeword::wake_word_status,
             commands::wakeword::train_wake_word,
             // ollama lifecycle
@@ -444,11 +448,16 @@ pub fn run() {
             commands::linux::manage_service,
             // microphone (cpal — never the webview, see commands::audio)
             commands::audio::test_microphone,
+            commands::audio::list_microphones,
+            commands::audio::set_input_device,
             commands::audio::start_capture,
             commands::audio::stop_capture,
             commands::audio::is_capturing,
             // voice
             commands::voice::voice_status,
+            commands::voice::stt_status,
+            commands::voice::download_whisper_model,
+            commands::voice::build_whisper_sidecar,
             commands::voice::transcribe,
             commands::voice::synthesize,
             commands::voice::speak_native,

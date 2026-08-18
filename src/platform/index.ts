@@ -43,26 +43,16 @@ let infoCache: PlatformInfo | null = null;
 export async function getTools(): Promise<ToolDefinition[]> {
   if (toolsCache) return toolsCache;
 
-  if (isMobile) {
-    const mod = await import('./mobile');
-    toolsCache = await mod.mobileTools();
-  } else {
-    const mod = await import('./desktop');
-    toolsCache = await mod.desktopTools();
-  }
+  const mod = await import('./desktop');
+  toolsCache = await mod.desktopTools();
   return toolsCache;
 }
 
 export async function getPlatformInfo(): Promise<PlatformInfo> {
   if (infoCache) return infoCache;
 
-  if (isMobile) {
-    const mod = await import('./mobile');
-    infoCache = await mod.mobilePlatformInfo();
-  } else {
-    const mod = await import('./desktop');
-    infoCache = await mod.desktopPlatformInfo();
-  }
+  const mod = await import('./desktop');
+  infoCache = await mod.desktopPlatformInfo();
   return infoCache;
 }
 

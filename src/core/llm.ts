@@ -783,6 +783,53 @@ async function* streamAnthropic(
 
 /* ── Gemini ──────────────────────────────────────────────────────── */
 
+/**
+ * Shown only if a tool 400 survives the signature round-trip.
+ *
+ * Reaching this means Gemini rejected a call ARIA replayed correctly, so the
+ * useful advice is still to move provider rather than to keep retrying.
+ */
+export const GEMINI_TOOLS_UNSUPPORTED =
+  "Gemini thinking models don't support tools — switch to OpenRouter or Groq for agent tasks";
+
+/**
+ * Move the active provider off Gemini, to whichever agent-capable provider
+ * already has a key.
+ *
+ * Returns whether it actually switched. OpenRouter is preferred over Groq only
+ * because its free catalogue means a key there is more likely to have credit.
+ * Nothing is switched if neither has a key — silently landing the user on a
+ * provider that cannot authenticate would replace one dead turn with another.
+ */
+async function switchAwayFromGemini(): Promise<boolean> {
+  try {
+    const { useKeys } = await import('@/store/keys');
+    const state = useKeys.getState();
+    const target = (['openrouter', 'groq'] as const).find((p) => state.keys[p]);
+    if (!target) return false;
+    await state.setActive(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Is this a 400 about the missing thought signature?
+ *
+ * Matched loosely: Google has reworded it once already, and the failure is
+ * specific enough that a false positive is not a real risk.
+ */
+export function isGeminiToolError(status: number, detail: string): boolean {
+  if (status !== 400) return false;
+  const text = detail.toLowerCase();
+  return (
+    text.includes('thought_signature') ||
+    text.includes('thoughtsignature') ||
+    (text.includes('function') && text.includes('not supported'))
+  );
+}
+
 async function* streamGemini(
   config: LLMConfig,
   messages: Message[],
@@ -825,12 +872,22 @@ async function* streamGemini(
       parts.push({ inlineData: { mimeType: mediaType, data } });
     }
     for (const tc of m.toolCalls ?? []) {
-      parts.push({ functionCall: { name: tc.name, args: tc.args } });
+      // Echo the signature back exactly as it arrived. Without it a thinking
+      // model answers 400 on the turn *after* the first tool call, which is
+      // every agent task that does more than one step.
+      parts.push({
+        functionCall: { name: tc.name, args: tc.args },
+        ...(tc.signature ? { thoughtSignature: tc.signature } : {}),
+      });
     }
 
     if (parts.length > 0) contents.push({ role, parts });
   }
 
+  // Every Gemini model gets tools. Thinking models used to be excluded here,
+  // because replaying a `functionCall` without its `thoughtSignature` 400s on
+  // the second turn — that signature is now carried through, so the exclusion
+  // would only cost capability. The 400 handler below stays as a safety net.
   const declarations =
     tools.length > 0
       ? tools.map((t) => ({
@@ -872,7 +929,22 @@ async function* streamGemini(
     { url, body, headers: {} },
   );
   if (!res.ok) {
-    yield { error: await describeHttpError(res, 'gemini'), done: true };
+    const detail = await describeHttpError(res, 'gemini');
+    // A tool 400 that arrives despite the guard above means the model reasons
+    // but does not look like it does. Move to a provider that can actually run
+    // the task rather than failing the turn — the user asked for the work, not
+    // for a lesson in which model supports what.
+    if (isGeminiToolError(res.status, detail)) {
+      const switched = await switchAwayFromGemini();
+      yield {
+        error: switched
+          ? `${GEMINI_TOOLS_UNSUPPORTED}. Switched to OpenRouter — send that again.`
+          : `${GEMINI_TOOLS_UNSUPPORTED}. Add an OpenRouter or Groq key in Settings → Keys.`,
+        done: true,
+      };
+      return;
+    }
+    yield { error: detail, done: true };
     return;
   }
 
@@ -894,11 +966,23 @@ async function* streamGemini(
       }
       const fc = part.functionCall as Record<string, unknown> | undefined;
       if (fc && typeof fc.name === 'string') {
+        // The signature sits on the *part*, not inside `functionCall`. It has
+        // to survive the round trip or the next turn is rejected — see
+        // `isGeminiToolError`. Newer payloads have also carried it inside the
+        // call itself, so both spellings are accepted.
+        const signature =
+          typeof part.thoughtSignature === 'string'
+            ? part.thoughtSignature
+            : typeof fc.thoughtSignature === 'string'
+              ? fc.thoughtSignature
+              : undefined;
+
         yield {
           toolCall: {
             id: uid('call'),
             name: fc.name,
             args: (fc.args as Record<string, unknown>) ?? {},
+            ...(signature ? { signature } : {}),
           },
         };
       }
