@@ -87,8 +87,10 @@ pub async fn run_with_timeout(
 
     #[cfg(target_os = "windows")]
     {
-        // Keep console windows from flashing up behind the UI.
-        use std::os::windows::process::CommandExt;
+        // Keep console windows from flashing up behind the UI. No
+        // `CommandExt` import here: this is a tokio Command, which carries
+        // `creation_flags` inherently, and importing the trait as well is an
+        // unused import that fails the build under -D warnings.
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -155,7 +157,7 @@ pub async fn run_with_stdin(program: &str, args: &[String], input: &str) -> JRes
 
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
+        // Tokio's Command again — inherent `creation_flags`, no trait import.
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
