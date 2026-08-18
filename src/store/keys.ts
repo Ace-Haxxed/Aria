@@ -9,11 +9,19 @@
 import { create } from 'zustand';
 import { isTauri } from '@/platform';
 
-export type Provider = 'openai' | 'anthropic' | 'gemini' | 'groq' | 'openrouter' | 'bytez';
+export type Provider =
+  | 'openai'
+  | 'anthropic'
+  | 'gemini'
+  | 'groq'
+  | 'openrouter'
+  | 'nvidia'
+  | 'bytez';
 
 export const PROVIDERS: Provider[] = [
   'bytez',
   'openrouter',
+  'nvidia',
   'groq',
   'openai',
   'anthropic',
@@ -26,6 +34,7 @@ export const PROVIDER_LABEL: Record<Provider, string> = {
   gemini: 'Gemini',
   groq: 'Groq',
   openrouter: 'OpenRouter',
+  nvidia: 'NVIDIA',
   bytez: 'Bytez',
 };
 
@@ -36,6 +45,7 @@ export const PROVIDER_CONSOLE: Record<Provider, string> = {
   gemini: 'aistudio.google.com/apikey',
   groq: 'console.groq.com/keys',
   openrouter: 'openrouter.ai/keys',
+  nvidia: 'build.nvidia.com',
   bytez: 'bytez.com',
 };
 

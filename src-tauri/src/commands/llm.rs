@@ -259,6 +259,7 @@ fn pretty_provider(provider: &str) -> &str {
         "anthropic" => "Anthropic",
         "gemini" => "Gemini",
         "openrouter" => "OpenRouter",
+        "nvidia" => "NVIDIA",
         "bytez" => "Bytez",
         "builtin" => "The built-in model",
         _ => "The model provider",
@@ -896,6 +897,17 @@ pub async fn validate_api_key(provider: String, api_key: String) -> JResult<KeyC
         "openrouter" => client()
             .get("https://openrouter.ai/api/v1/key")
             .bearer_auth(&api_key),
+        // NVIDIA's model listing is public and answers 200 to any key at all,
+        // so it cannot tell a good key from a typo. A one-token completion is
+        // the cheapest request that actually checks the credential.
+        "nvidia" => client()
+            .post("https://integrate.api.nvidia.com/v1/chat/completions")
+            .bearer_auth(&api_key)
+            .json(&serde_json::json!({
+                "model": "meta/llama-3.1-8b-instruct",
+                "messages": [{ "role": "user", "content": "hi" }],
+                "max_tokens": 1,
+            })),
         // Bytez is handled separately below: its documented scheme sends the
         // key raw (`Authorization: <key>`) while its OpenAI-compatible
         // endpoint may accept `Bearer`. Rather than guess wrong and reject a

@@ -150,6 +150,8 @@ export type LLMProvider =
   | 'builtin'
   /** One key, every model — routes to whichever provider hosts it. */
   | 'openrouter'
+  /** NVIDIA's hosted NIM endpoints — OpenAI-compatible, free build tier. */
+  | 'nvidia'
   | 'bytez'
   | 'ollama'
   | 'groq'

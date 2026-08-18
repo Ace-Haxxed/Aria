@@ -132,6 +132,26 @@ export const PROVIDERS: ProviderSpec[] = [
     hint: 'One key for models from every provider. Free tier needs no credits. Key from openrouter.ai/keys.',
   },
   {
+    id: 'nvidia',
+    label: 'NVIDIA (build.nvidia.com)',
+    needsApiKey: true,
+    // Tool calling is not optional here — the agent loop cannot run without
+    // it — and most of NVIDIA's 100-model catalogue does not support it, so
+    // these are chosen for that rather than for size.
+    defaultModel: 'meta/llama-3.3-70b-instruct',
+    defaultVisionModel: 'meta/llama-3.2-90b-vision-instruct',
+    models: [
+      'meta/llama-3.3-70b-instruct',
+      'nvidia/llama-3.3-nemotron-super-49b-v1.5',
+      'nvidia/llama-3.1-nemotron-70b-instruct',
+      'meta/llama-3.1-8b-instruct',
+      'deepseek-ai/deepseek-v4-flash-0731',
+      'meta/llama-3.2-90b-vision-instruct',
+    ],
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    hint: 'Free credits on the build tier, no card. Key (starts nvapi-) from build.nvidia.com.',
+  },
+  {
     id: 'bytez',
     label: 'Bytez',
     needsApiKey: true,

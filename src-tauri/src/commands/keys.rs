@@ -19,7 +19,8 @@ use crate::util::{AriaError, JResult};
 
 /// Providers the config always carries, so the settings UI has a stable set of
 /// tabs whether or not a key has ever been saved for one.
-pub const PROVIDERS: [&str; 6] = ["openai", "anthropic", "gemini", "groq", "openrouter", "bytez"];
+pub const PROVIDERS: [&str; 7] =
+    ["openai", "anthropic", "gemini", "groq", "openrouter", "nvidia", "bytez"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyConfig {
@@ -74,6 +75,9 @@ pub fn default_model_for(provider: &str) -> String {
         "openai" => "gpt-4o-mini",
         "anthropic" => "claude-sonnet-4-5",
         "gemini" => "gemini-2.5-flash",
+        // Tool-capable and on NVIDIA's free build tier; ARIA's loop is useless
+        // without function calling, which rules out most of their catalogue.
+        "nvidia" => "meta/llama-3.3-70b-instruct",
         "bytez" => "google/gemma-2-9b-it",
         _ => "google/gemma-4-26b-a4b-it:free",
     }
@@ -608,6 +612,20 @@ fn probe(provider: &str, key: &str) -> Option<reqwest::RequestBuilder> {
             .header("x-goog-api-key", key),
         "groq" => client.get("https://api.groq.com/openai/v1/models").bearer_auth(key),
         "openrouter" => client.get("https://openrouter.ai/api/v1/key").bearer_auth(key),
+        // The one provider here validated with a completion rather than a
+        // listing. NVIDIA's `/v1/models` is a public catalogue: it answers 200
+        // to a key of `nvapi-bogus`, so using it would pass every string the
+        // user could type. `/v1/chat/completions` is the cheapest endpoint
+        // that actually discriminates — 403 on a bad key — and one token off
+        // the smallest model costs approximately nothing.
+        "nvidia" => client
+            .post("https://integrate.api.nvidia.com/v1/chat/completions")
+            .bearer_auth(key)
+            .json(&serde_json::json!({
+                "model": "meta/llama-3.1-8b-instruct",
+                "messages": [{ "role": "user", "content": "hi" }],
+                "max_tokens": 1,
+            })),
         // Bytez wants the bare key, and `list/models` answers 500 even for a
         // good key — `list/tasks` is the one that actually discriminates.
         "bytez" => client
@@ -884,6 +902,62 @@ mod tests {
         assert!(config.active_key().is_none());
         config.keys.insert("bytez".into(), "abc".into());
         assert_eq!(config.active_key(), Some("abc"));
+    }
+
+    /// NVIDIA's `/v1/models` is a public catalogue: it answers 200 to any key,
+    /// including no key at all. Validating against it would accept every
+    /// string a user could type, which is the same trap Bytez's `list/models`
+    /// set. This asserts the reason the probe uses a completion instead, and
+    /// fails if NVIDIA ever starts authenticating that listing — at which
+    /// point the cheaper endpoint becomes the right one.
+    #[test]
+    fn nvidia_model_listing_cannot_validate_a_key() {
+        let Ok(runtime) = tokio::runtime::Runtime::new() else {
+            return;
+        };
+        let outcome = runtime.block_on(async {
+            let client = reqwest::Client::builder()
+                .timeout(Duration::from_secs(15))
+                .build()
+                .ok()?;
+            let listing = client
+                .get("https://integrate.api.nvidia.com/v1/models")
+                .bearer_auth("nvapi-definitely-not-a-real-key")
+                .send()
+                .await
+                .ok()?
+                .status();
+
+            // And the endpoint the probe actually uses must reject it.
+            let completion = client
+                .post("https://integrate.api.nvidia.com/v1/chat/completions")
+                .bearer_auth("nvapi-definitely-not-a-real-key")
+                .json(&serde_json::json!({
+                    "model": "meta/llama-3.1-8b-instruct",
+                    "messages": [{ "role": "user", "content": "hi" }],
+                    "max_tokens": 1,
+                }))
+                .send()
+                .await
+                .ok()?
+                .status();
+            Some((listing, completion))
+        });
+
+        let Some((listing, completion)) = outcome else {
+            eprintln!("skipping: NVIDIA unreachable");
+            return;
+        };
+        assert!(
+            listing.is_success(),
+            "the listing started rejecting bad keys ({listing}) — it is now the \
+             cheaper probe and `probe()` should switch back to it"
+        );
+        assert!(
+            !completion.is_success(),
+            "a bogus key was accepted by chat/completions ({completion}); key \
+             validation would pass anything"
+        );
     }
 
     #[test]
