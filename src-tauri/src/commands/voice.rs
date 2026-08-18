@@ -678,7 +678,7 @@ async fn native_tts(text: &str, out_path: &str, speed: f32) -> JResult<bool> {
             text.to_string(),
         ];
         let out = run_owned("say", &args).await?;
-        return Ok(out.ok());
+        Ok(out.ok())
     }
 
     #[cfg(target_os = "windows")]
@@ -702,7 +702,7 @@ async fn native_tts(text: &str, out_path: &str, speed: f32) -> JResult<bool> {
             script,
         ];
         let out = run_owned("powershell", &args).await?;
-        return Ok(out.ok());
+        Ok(out.ok())
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]
