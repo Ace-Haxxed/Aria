@@ -59,9 +59,8 @@
     ],
     "category": "Utility",
     "shortDescription": "AI assistant with full device control",
-    "longDescription": "ARIA is a voice-driven AI assistant that can see your screen, control your mouse and keyboard, manage files, drive a browser and run commands \u2014 with a confirmation layer in front of anything destructive.",
+    "longDescription": "ARIA is a voice-driven AI assistant that can see your screen, control your mouse and keyboard, manage files, drive a browser and run commands.",
     "copyright": "Copyright \u00a9 2026 ARIA contributors",
-    "licenseFile": "../LICENSE",
     "linux": {
       "deb": {
         "depends": [

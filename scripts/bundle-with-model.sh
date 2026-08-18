@@ -149,7 +149,6 @@ cp "$TOKENIZER_PATH" "$STAGE/models/$MODEL_ID.tokenizer.json"
 
 # The fine-tuning sidecar is small and useless to re-download offline.
 [ -f "$ROOT/scripts/finetune.py" ] && cp "$ROOT/scripts/finetune.py" "$STAGE/scripts/"
-[ -f "$ROOT/LICENSE" ] && cp "$ROOT/LICENSE" "$STAGE/"
 
 cat > "$STAGE/install-bundle.sh" <<'INSTALLER'
 #!/usr/bin/env bash

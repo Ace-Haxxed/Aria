@@ -146,7 +146,7 @@ jobs:
           pkgdesc="Cross-platform AI assistant with full device control"
           arch=('x86_64')
           url="https://github.com/${GITHUB_REPOSITORY}"
-          license=('MIT')
+          license=('custom')
           depends=('webkit2gtk-4.1' 'gtk3' 'libayatana-appindicator')
           optdepends=(
             'xdotool: mouse and keyboard control on X11'
@@ -166,8 +166,6 @@ jobs:
               "\${pkgdir}/usr/bin/jarvis"
             install -Dm644 "\${GITHUB_WORKSPACE}/src-tauri/icons/512x512.png" \\
               "\${pkgdir}/usr/share/icons/hicolor/512x512/apps/jarvis.png"
-            install -Dm644 "\${GITHUB_WORKSPACE}/LICENSE" \\
-              "\${pkgdir}/usr/share/licenses/jarvis/LICENSE"
 
             install -Dm644 /dev/stdin "\${pkgdir}/usr/share/applications/jarvis.desktop" <<DESKTOP
           [Desktop Entry]

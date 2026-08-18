@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "ARIA \u2014 Adaptive Reasoning and Intelligence Assistant",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
