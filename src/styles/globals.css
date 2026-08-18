@@ -177,7 +177,6 @@
 .aria-space-grid {
   position: absolute;
   inset: 0;
-  opacity: 0.03;
   background-image:
     repeating-linear-gradient(
       to right,
@@ -190,12 +189,10 @@
       transparent 1px 80px
     );
   mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 0%, transparent 75%);
-  animation: aria-grid-pulse 4s ease-in-out infinite;
-}
-
-@keyframes aria-grid-pulse {
-  0%, 100% { opacity: 0.03; }
-  50% { opacity: 0.055; }
+  /* Was a 4s opacity pulse between 0.03 and 0.055. Animating opacity on a
+     full-screen masked gradient repaints it every frame, and the difference
+     is not perceptible — so it is now a static value. */
+  opacity: 0.04;
 }
 
 /* One large blurred ellipse drifting on a 30s loop. Kept under 6% opacity:
@@ -541,8 +538,11 @@ html {
   position: absolute;
   inset-inline: 0;
   height: 40%;
-  top: -40%;
+  top: 0;
   pointer-events: none;
+  /* Promoted to its own layer so the sweep below is a compositor transform
+     rather than a repaint of the panel behind it. */
+  will-change: transform;
   background: linear-gradient(
     180deg,
     transparent,
@@ -551,8 +551,12 @@ html {
   );
   animation: hud-sweep 7s linear infinite;
 }
+/* `transform`, not `top`. Animating `top` runs layout on every frame for the
+   whole panel, which on an always-visible element is a steady CPU cost for a
+   decoration nobody is looking at. A translate stays on the compositor. */
 @keyframes hud-sweep {
-  to { top: 100%; }
+  from { transform: translate3d(0, -100%, 0); }
+  to   { transform: translate3d(0, 250%, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

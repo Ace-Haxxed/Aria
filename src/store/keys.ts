@@ -117,6 +117,93 @@ const DEFAULTS: Pick<KeyState, 'activeProvider' | 'model' | 'keys' | 'status' | 
   messages: {},
 };
 
+/* ── Mobile persistence ──────────────────────────────────────────── */
+//
+// Android and iOS have no Tauri process, so none of the `invoke` calls below
+// exist there. Without this half, the key page validated nothing, saved
+// nothing, and reported "loaded" with every field empty — which is exactly
+// what "the API key isn't loading" looks like on a phone.
+//
+// Capacitor Preferences is the same store `settings.ts` already uses, and the
+// key names match `loadApiKey()` there so both halves see the same value.
+
+const PREF_KEY = (provider: string) => `aria.key.${provider}`;
+const PREF_ACTIVE = 'aria.activeProvider';
+const PREF_MODEL = 'aria.model';
+
+async function prefs() {
+  const { Preferences } = await import('@capacitor/preferences');
+  return Preferences;
+}
+
+/**
+ * Mirror the choice into `settings.llm`, which is what actually builds a
+ * request.
+ *
+ * These were two independent sources of truth. `providerChain` reads
+ * `settings.llm.provider`, while the key page writes `useKeys.activeProvider`,
+ * and nothing connected them — so entering an OpenRouter key and being told it
+ * validated still sent the next message to whatever `settings.llm` happened to
+ * hold. On mobile that defaults to Groq, so the key the user had just added
+ * was never used at all.
+ *
+ * Dynamically imported: `settings.ts` already reaches back into this module
+ * for `loadApiKey`, and a static import either way would close the cycle.
+ */
+async function syncSettingsLLM(provider: Provider, model: string, apiKey?: string) {
+  try {
+    const { useSettings } = await import('./settings');
+    useSettings.getState().updateLLM({
+      provider,
+      ...(model ? { model } : {}),
+      ...(apiKey ? { apiKey } : {}),
+    });
+  } catch {
+    // Settings not ready yet; `load()` re-syncs on the next launch.
+  }
+}
+
+async function mobileLoad(): Promise<Partial<KeyState>> {
+  const P = await prefs();
+  const entries = await Promise.all(
+    PROVIDERS.map(async (p) => [p, (await P.get({ key: PREF_KEY(p) })).value ?? ''] as const),
+  );
+  const keys = Object.fromEntries(entries);
+
+  const active = ((await P.get({ key: PREF_ACTIVE })).value as Provider | null) ?? null;
+  const model = (await P.get({ key: PREF_MODEL })).value ?? '';
+
+  // Prefer a provider that actually has a key, so a fresh install that only
+  // ever had one key entered starts on it rather than on the default.
+  const resolved =
+    active && keys[active] ? active : (PROVIDERS.find((p) => keys[p]) ?? active ?? 'groq');
+
+  return {
+    activeProvider: resolved,
+    model: model || DEFAULT_MODEL_FOR[resolved] || DEFAULTS.model,
+    keys,
+    status: Object.fromEntries(
+      PROVIDERS.map((p) => [p, keys[p] ? 'ok' : 'unset']),
+    ) as Record<string, CheckState>,
+  };
+}
+
+/**
+ * A model each provider actually serves, mirroring `default_model_for` in the
+ * Rust key module. Adopting a key without a model that provider hosts gives a
+ * config that authenticates and then 404s on the first message.
+ */
+const DEFAULT_MODEL_FOR: Record<Provider, string> = {
+  groq: 'llama-3.1-8b-instant',
+  openai: 'gpt-4o-mini',
+  anthropic: 'claude-sonnet-4-5',
+  gemini: 'gemini-2.5-flash',
+  nvidia: 'meta/llama-3.3-70b-instruct',
+  bytez: 'google/gemma-2-9b-it',
+  // Resolved from the live catalogue, never hardcoded.
+  openrouter: '',
+};
+
 export const useKeys = create<KeyState>((set, get) => ({
   loaded: false,
   freeModels: [],
@@ -124,7 +211,34 @@ export const useKeys = create<KeyState>((set, get) => ({
   ...DEFAULTS,
 
   async loadFreeModels() {
-    if (!isTauri) return;
+    // No Rust on a phone, so the catalogue is fetched directly there. Without
+    // this the OpenRouter dropdown stayed empty and the provider had no model
+    // at all, since its default is resolved from the live list by design.
+    if (!isTauri) {
+      if (get().freeModelsState === 'loading') return;
+      set({ freeModelsState: 'loading' });
+      try {
+        const { fetchFreeModels } = await import('@/core/keyProbe');
+        const list = await fetchFreeModels(get().keys.openrouter ?? '');
+        const models: FreeModel[] = list.map((m) => ({
+          ...m,
+          paramsB: null,
+          tier: null,
+        }));
+        set(
+          models.length > 0
+            ? { freeModels: models, freeModelsState: 'ready' }
+            : { freeModelsState: 'failed' },
+        );
+        // Adopt one if OpenRouter is active and nothing is chosen yet.
+        if (models.length > 0 && get().activeProvider === 'openrouter' && !get().model) {
+          await get().setModel(models[0].id);
+        }
+      } catch {
+        set({ freeModelsState: 'failed' });
+      }
+      return;
+    }
     // Refetched every time the page opens — OpenRouter withdraws free models
     // without notice, and a cached list is how the dropdown ends up offering
     // an id that no longer resolves. Only an in-flight fetch is skipped.
@@ -157,7 +271,17 @@ export const useKeys = create<KeyState>((set, get) => ({
 
   async load() {
     if (!isTauri) {
-      set({ loaded: true });
+      try {
+        set({ loaded: true, ...(await mobileLoad()) });
+        const s = get();
+        if (s.keys[s.activeProvider]) {
+          await syncSettingsLLM(s.activeProvider, s.model, s.keys[s.activeProvider]);
+        }
+      } catch {
+        // No Capacitor either — a plain browser during `vite dev`. Nothing to
+        // restore, but the app still has to render.
+        set({ loaded: true });
+      }
       return;
     }
     try {
@@ -189,8 +313,18 @@ export const useKeys = create<KeyState>((set, get) => ({
 
     set((s) => ({ status: { ...s.status, [provider]: 'checking' } }));
 
-    const { invoke } = await import('@tauri-apps/api/core');
-    const check = await invoke<KeyCheck>('validate_key', { provider, key: trimmed });
+    // Same endpoints either way — Rust owns the list on desktop, `keyProbe`
+    // mirrors it where there is no Rust.
+    const check: KeyCheck = isTauri
+      ? await (async () => {
+          const { invoke } = await import('@tauri-apps/api/core');
+          return invoke<KeyCheck>('validate_key', { provider, key: trimmed });
+        })()
+      : await (async () => {
+          const { probeKey } = await import('@/core/keyProbe');
+          const r = await probeKey(provider, trimmed);
+          return { ok: r.ok, message: r.message, latencyMs: r.latencyMs };
+        })();
 
     if (!check.ok) {
       set((s) => ({
@@ -200,7 +334,20 @@ export const useKeys = create<KeyState>((set, get) => ({
       return false;
     }
 
-    await invoke('set_key', { provider, key: trimmed });
+    if (isTauri) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_key', { provider, key: trimmed });
+    } else {
+      const P = await prefs();
+      await P.set({ key: PREF_KEY(provider), value: trimmed });
+      // Adopt a model this provider actually serves, unless one is already
+      // chosen — otherwise the key authenticates and the first message 404s.
+      if (!get().model || get().activeProvider !== provider) {
+        const model = DEFAULT_MODEL_FOR[provider];
+        if (model) await P.set({ key: PREF_MODEL, value: model });
+      }
+    }
+
     set((s) => ({
       keys: { ...s.keys, [provider]: trimmed },
       status: { ...s.status, [provider]: 'ok' },
@@ -210,8 +357,13 @@ export const useKeys = create<KeyState>((set, get) => ({
   },
 
   async removeKey(provider) {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('set_key', { provider, key: '' });
+    if (isTauri) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_key', { provider, key: '' });
+    } else {
+      const P = await prefs();
+      await P.remove({ key: PREF_KEY(provider) });
+    }
     set((s) => ({
       keys: { ...s.keys, [provider]: '' },
       status: { ...s.status, [provider]: 'unset' },
@@ -221,6 +373,20 @@ export const useKeys = create<KeyState>((set, get) => ({
 
   async setActive(provider) {
     set({ activeProvider: provider });
+
+    if (!isTauri) {
+      const P = await prefs();
+      await P.set({ key: PREF_ACTIVE, value: provider });
+      // The model has to travel with the provider — each serves a different
+      // catalogue, so keeping the old id points at something the new provider
+      // has never heard of.
+      const model = DEFAULT_MODEL_FOR[provider];
+      await P.set({ key: PREF_MODEL, value: model });
+      set({ model });
+      await syncSettingsLLM(provider, model, get().keys[provider]);
+      return;
+    }
+
     const { invoke } = await import('@tauri-apps/api/core');
     await invoke('set_active_provider', { provider });
 
@@ -229,10 +395,17 @@ export const useKeys = create<KeyState>((set, get) => ({
     // belonging to the provider we just left.
     const config = await invoke<KeyConfig>('key_config').catch(() => null);
     if (config) set({ model: config.model });
+    await syncSettingsLLM(provider, get().model, get().keys[provider]);
   },
 
   async setModel(model) {
     set({ model });
+    await syncSettingsLLM(get().activeProvider, model, get().keys[get().activeProvider]);
+    if (!isTauri) {
+      const P = await prefs();
+      await P.set({ key: PREF_MODEL, value: model });
+      return;
+    }
     const { invoke } = await import('@tauri-apps/api/core');
     await invoke('set_active_model', { model });
   },

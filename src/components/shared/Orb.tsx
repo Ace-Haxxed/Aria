@@ -166,17 +166,38 @@ function OrbComponent({
     let smoothedLevel = 0;
 
     const draw = (now: number) => {
-      // Half rate when the window is not focused: the orb is decoration at
-      // that point, and a background tab burning a core is not acceptable.
+      const current = live.current.state;
+
+      // Frame budget.
+      //
+      // This loop rebuilds two radial gradients per frame and never stops, so
+      // at 60fps it holds a core busy drawing an orb that is not moving. Full
+      // rate is reserved for the states that actually change frame to frame:
+      // audio-reactive listening, and the moment of a state transition.
+      //
+      // Idle still animates — the core breathes at 1.6 rad/s, which reads
+      // fine at 12fps — but costs a fifth of what it did.
       const focused = document.hasFocus();
-      const minFrameMs = focused ? 0 : 33;
+      const settled = current === toState && now - transitionStart > duration;
+      const quiet = current === 'idle' && live.current.level < 0.02;
+
+      let minFrameMs = 0;
+      if (!focused) {
+        // Decoration nobody is looking at.
+        minFrameMs = 100;
+      } else if (settled && quiet) {
+        minFrameMs = 80;
+      } else if (settled && current !== 'listening') {
+        // Thinking and speaking pulse, but not per-frame.
+        minFrameMs = 33;
+      }
+
       if (now - last < minFrameMs) {
         raf = requestAnimationFrame(draw);
         return;
       }
       last = now;
 
-      const current = live.current.state;
       if (current !== toState) {
         // Blend from wherever the previous transition had reached, so a rapid
         // sequence of changes stays continuous instead of snapping.
