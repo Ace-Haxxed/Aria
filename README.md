@@ -233,3 +233,16 @@ on each platform you need.
 ---
 
 ARIA can control your device. Read what it asks before you approve it.
+
+---
+
+## Other platforms
+
+| Platform | Repository | Install |
+|---|---|---|
+| **Android** | [Aria-Android](https://github.com/Ace-Haxxed/Aria-Android) | Open [Releases](https://github.com/Ace-Haxxed/Aria-Android/releases/latest) on the phone and tap the APK |
+| **iOS** | [Aria-Ios](https://github.com/Ace-Haxxed/Aria-Ios) | Xcode with a free Apple ID (7-day cert) |
+| **Debian / Ubuntu** | [Aria-Debian](https://github.com/Ace-Haxxed/Aria-Debian) | `scripts/install-debian.sh`, then `scripts/install.sh` |
+| **Fedora** | [Aria-Fedora](https://github.com/Ace-Haxxed/Aria-Fedora) | `scripts/install-fedora.sh`, then `scripts/install.sh` |
+| **Windows** | [Aria-Windows](https://github.com/Ace-Haxxed/Aria-Windows) | `scripts\install-windows.ps1`, then build the `.msi` |
+| **macOS** | [Aria-Mac](https://github.com/Ace-Haxxed/Aria-Mac) | `scripts/install-mac.sh`, then build the `.dmg` |
