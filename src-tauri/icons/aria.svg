@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#eafcff"/>
+      <stop offset="35%" stop-color="#4fe3ff"/>
+      <stop offset="75%" stop-color="#0e9fd0"/>
+      <stop offset="100%" stop-color="#063d55"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7ff0ff"/>
+      <stop offset="100%" stop-color="#0b7fa8"/>
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#05080d"/>
+  <circle cx="256" cy="256" r="150" fill="#2ad4ff" opacity="0.28" filter="url(#blur)"/>
+
+  <!-- outer segmented ring -->
+  <g fill="none" stroke="url(#ring)" stroke-width="10" stroke-linecap="round">
+    <path d="M256 92 a164 164 0 0 1 116 48"/>
+    <path d="M420 256 a164 164 0 0 1 -48 116"/>
+    <path d="M256 420 a164 164 0 0 1 -116 -48"/>
+    <path d="M92 256 a164 164 0 0 1 48 -116"/>
+  </g>
+
+  <!-- inner ring -->
+  <circle cx="256" cy="256" r="128" fill="none" stroke="#1fb9e6" stroke-width="4" opacity="0.55"/>
+
+  <!-- arc reactor core -->
+  <circle cx="256" cy="256" r="96" fill="url(#core)"/>
+  <circle cx="256" cy="256" r="96" fill="none" stroke="#bff4ff" stroke-width="3" opacity="0.7"/>
+
+  <!-- core spokes -->
+  <g stroke="#05202c" stroke-width="9" stroke-linecap="round" opacity="0.75">
+    <line x1="256" y1="178" x2="256" y2="216"/>
+    <line x1="256" y1="296" x2="256" y2="334"/>
+    <line x1="178" y1="256" x2="216" y2="256"/>
+    <line x1="296" y1="256" x2="334" y2="256"/>
+  </g>
+  <circle cx="256" cy="256" r="42" fill="#f2feff" opacity="0.92"/>
+</svg>

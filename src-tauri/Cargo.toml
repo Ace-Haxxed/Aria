@@ -1,0 +1,135 @@
+[package]
+name = "aria"
+version = "1.0.0"
+description = "ARIA — Adaptive Reasoning and Intelligence Assistant"
+authors = ["ARIA contributors"]
+license = "MIT"
+repository = "https://github.com/jarvis-assistant/jarvis"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "aria_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "protocol-asset"] }
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-store = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-os = "2"
+tauri-plugin-process = "2"
+tauri-plugin-http = "2"
+tauri-plugin-global-shortcut = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+thiserror = "2"
+base64 = "0.22"
+dirs = "5"
+which = "7"
+walkdir = "2"
+sysinfo = "0.33"
+chrono = { version = "0.4", features = ["serde"] }
+trash = "5"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "sqlite",
+    "macros",
+    "chrono",
+] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+    "stream",
+] }
+tokio-tungstenite = { version = "0.24", default-features = false, features = [
+    "connect",
+    "handshake",
+] }
+futures-util = "0.3"
+enigo = "0.3"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+# Microphone capture. WebKitGTK cannot reach getUserMedia on a Wayland session,
+# so all audio input goes through the host audio API instead of the webview:
+# ALSA on Linux, WASAPI on Windows, CoreAudio on macOS. Default features only —
+# the `jack` feature would need libjack headers present at build time, which
+# would break a from-source build on a stock machine.
+cpal = "0.15"
+
+# The built-in language model, run in-process.
+#
+# candle rather than llama.cpp bindings: it is pure Rust, so the crate builds
+# with the toolchain a Rust developer already has. The llama.cpp bindings
+# compile a C++ tree through cmake, which makes cmake and a C++ compiler hard
+# build requirements for everyone and rules out building on a machine that has
+# neither. Inference is somewhat slower, which is the trade accepted for the
+# app being buildable and testable everywhere.
+candle-core = "0.11"
+candle-transformers = "0.11"
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+
+# Verifying a 2 GB download against the digest the host publishes.
+sha2 = "0.10"
+
+# Wake-word feature extraction. An FFT is the one piece of the MFCC pipeline
+# not worth hand-rolling.
+rustfft = "6"
+
+# D-Bus, for the xdg-desktop-portal screen-capture path that GNOME requires.
+# Pure Rust (no libdbus), so it does not add a system build dependency, and
+# `tokio` keeps it on the reactor Tauri already runs.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+# Beyond cpal and zbus there are no native dependencies by design.
+#
+# Input synthesis goes through `enigo` (SendInput on Windows, CGEvent on macOS,
+# XTest on X11) and everything else — screen capture, window management, volume,
+# brightness — goes through documented per-platform helper processes. That keeps
+# the crate free of blind `unsafe` FFI and means the exact same Rust compiles on
+# every target, which is what makes cross-compilation in CI reliable.
+
+[features]
+# Used by `tauri dev`/`tauri build` to strip the console window on Windows.
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+# GPU acceleration for the built-in model.
+#
+# Off by default: enabling CUDA requires the CUDA toolkit at build time, and a
+# default build that fails on machines without nvcc would be worse than a
+# slower one that always works. Package these as separate artefacts —
+# `cargo build --release --features cuda` — for users who have the toolchain.
+# The code checks at runtime too, so a CUDA build still falls back to CPU on a
+# machine with no NVIDIA card.
+cuda = ["candle-core/cuda", "candle-transformers/cuda"]
+metal = ["candle-core/metal", "candle-transformers/metal"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
+
+# Dependencies are built for speed even though the app itself is built for size.
+#
+# `opt-level = "s"` is the right trade for the Jarvis crate — it is UI and glue,
+# where a smaller installer beats microseconds. It is the wrong trade for the
+# inference stack: size optimisation strips the vectorisation and unrolling that
+# quantised matrix multiply depends on, and measured here it cost roughly an
+# order of magnitude — 25s to the first token instead of ~2s.
+[profile.release.package."*"]
+opt-level = 3

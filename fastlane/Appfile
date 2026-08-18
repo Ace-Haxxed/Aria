@@ -1,0 +1,15 @@
+# Shared identifiers for both platforms.
+#
+# Everything account-specific comes from the environment so this file can be
+# committed safely.
+
+app_identifier 'ai.jarvis.assistant'
+
+# iOS
+apple_id ENV['APPLE_ID']
+team_id ENV['APPLE_TEAM_ID']
+itc_team_id ENV['APPLE_ITC_TEAM_ID']
+
+# Android
+json_key_file ENV['GOOGLE_PLAY_JSON_KEY_PATH']
+package_name 'ai.jarvis.assistant'

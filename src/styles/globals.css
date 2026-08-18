@@ -1,0 +1,576 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * ARIA is dark-theme only by design. Every colour in the app resolves through
+ * one of these variables — nothing downstream hardcodes a hex or rgb value.
+ * The accent picker in Settings rewrites --accent-h/s/l at runtime, and every
+ * derived colour follows automatically.
+ *
+ * Base palette: deep navy #0a0f1e, electric cyan #00d4ff, white text.
+ */
+@layer base {
+  :root,
+  .dark {
+    /* Accent hue — the single knob the accent picker turns. #00d4ff. */
+    --accent-h: 190;
+    --accent-s: 100%;
+    --accent-l: 50%;
+
+    /* Surfaces: deep navy, #0a0f1e and a shade either side of it. */
+    --background: 225 50% 8%;
+    --foreground: 0 0% 100%;
+
+    --card: 225 44% 11%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 225 46% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: var(--accent-h) var(--accent-s) var(--accent-l);
+    --primary-foreground: 215 45% 5%;
+
+    --secondary: 225 38% 15%;
+    --secondary-foreground: 0 0% 96%;
+
+    --muted: 225 36% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: var(--accent-h) var(--accent-s) var(--accent-l);
+    --accent-foreground: var(--accent-h) var(--accent-s) var(--accent-l);
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 225 32% 18%;
+    --input: 225 32% 18%;
+    --ring: var(--accent-h) var(--accent-s) var(--accent-l);
+
+    --radius: 0.6rem;
+
+    /* Agent state colours — drive the orb, status text and the action log. */
+    --aria-idle: var(--accent-h) var(--accent-s) var(--accent-l);
+    --aria-listening: 0 85% 62%;
+    --aria-thinking: 0 0% 98%;
+    --aria-speaking: 205 100% 60%;
+    --aria-acting: 152 76% 48%;
+    --aria-grid: 190 60% 50%;
+
+    /* Risk levels on confirmation cards. */
+    --risk-low: 145 65% 45%;
+    --risk-medium: 38 92% 55%;
+    --risk-high: 0 78% 56%;
+
+    /* Safe-area insets — real values on mobile, zero on desktop. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* The app owns its own scroll regions; the document itself never scrolls. */
+  body {
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  /* Faint hex/grid backdrop used behind the orb stage. */
+  .aria-grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--aria-grid) / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--aria-grid) / 0.05) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  /* Glass panel used by the sidebar, action log and cards. */
+  .aria-panel {
+    @apply border border-border/70 bg-card/60 backdrop-blur-xl;
+  }
+
+  .aria-glow {
+    box-shadow:
+      0 0 24px hsl(var(--primary) / 0.28),
+      inset 0 0 18px hsl(var(--primary) / 0.08);
+  }
+
+  /* Thin, unobtrusive scrollbars that match the theme. */
+  .aria-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .aria-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .aria-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .aria-scroll::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  .aria-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--primary) / 0.5);
+  }
+
+  /* The desktop title bar is the only element allowed to drag the window. */
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Markdown in assistant replies ─────────────────────────────────
+ * Written against the app's own palette rather than importing a
+ * highlight.js theme: the shipped themes assume their own background and
+ * would fight the surrounding bubble.
+ */
+.aria-markdown > *:first-child {
+  margin-top: 0;
+}
+.aria-markdown > *:last-child {
+  margin-bottom: 0;
+}
+.aria-markdown p {
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.aria-markdown ul,
+.aria-markdown ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.aria-markdown ul {
+  list-style: disc;
+}
+.aria-markdown ol {
+  list-style: decimal;
+}
+.aria-markdown li {
+  margin: 0.25rem 0;
+}
+.aria-markdown h1,
+.aria-markdown h2,
+.aria-markdown h3,
+.aria-markdown h4 {
+  margin: 0.75rem 0 0.375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.aria-markdown h1 { font-size: 1.125rem; }
+.aria-markdown h2 { font-size: 1.0625rem; }
+.aria-markdown h3 { font-size: 1rem; }
+.aria-markdown blockquote {
+  margin: 0.5rem 0;
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+.aria-markdown hr {
+  margin: 0.75rem 0;
+  border-color: hsl(var(--border));
+}
+/* Inline code only — fenced blocks are styled by their <pre> wrapper. */
+.aria-markdown :not(pre) > code {
+  border-radius: 0.25rem;
+  background: hsl(var(--muted) / 0.6);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.8125em;
+}
+.aria-markdown th,
+.aria-markdown td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+}
+.aria-markdown th {
+  background: hsl(var(--muted) / 0.4);
+  font-weight: 600;
+}
+
+/* highlight.js tokens, mapped onto the Jarvis palette. */
+.aria-markdown .hljs-comment,
+.aria-markdown .hljs-quote {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+.aria-markdown .hljs-keyword,
+.aria-markdown .hljs-selector-tag,
+.aria-markdown .hljs-literal,
+.aria-markdown .hljs-type {
+  color: hsl(var(--aria-listening));
+}
+.aria-markdown .hljs-string,
+.aria-markdown .hljs-regexp,
+.aria-markdown .hljs-addition {
+  color: hsl(var(--aria-acting));
+}
+.aria-markdown .hljs-number,
+.aria-markdown .hljs-symbol,
+.aria-markdown .hljs-bullet {
+  color: hsl(var(--risk-medium));
+}
+.aria-markdown .hljs-title,
+.aria-markdown .hljs-section,
+.aria-markdown .hljs-function .hljs-title {
+  color: hsl(var(--primary));
+}
+.aria-markdown .hljs-attr,
+.aria-markdown .hljs-attribute,
+.aria-markdown .hljs-variable,
+.aria-markdown .hljs-template-variable {
+  color: hsl(var(--aria-speaking));
+}
+.aria-markdown .hljs-built_in,
+.aria-markdown .hljs-class .hljs-title {
+  color: hsl(var(--aria-thinking));
+}
+.aria-markdown .hljs-deletion {
+  color: hsl(var(--risk-high));
+}
+.aria-markdown .hljs-emphasis { font-style: italic; }
+.aria-markdown .hljs-strong { font-weight: 600; }
+
+/* ── Skeleton loading ──────────────────────────────────────────────
+ * Something in the shape of the content, so a slow load reads as
+ * "arriving" rather than "broken".
+ */
+.aria-skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.35) 25%,
+    hsl(var(--muted) / 0.6) 37%,
+    hsl(var(--muted) / 0.35) 63%
+  );
+  background-size: 400% 100%;
+  animation: aria-shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+@keyframes aria-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* ── Motion ────────────────────────────────────────────────────────
+ * One duration and one curve for everything that is not the orb, so
+ * transitions across the app feel like the same system rather than a
+ * collection of independently tuned components.
+ */
+:root {
+  --aria-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --aria-duration: 150ms;
+}
+
+.aria-transition {
+  transition-duration: var(--aria-duration);
+  transition-timing-function: var(--aria-ease);
+}
+
+/* Suppress animation on the very first paint. Without this the whole window
+ * plays its entrance transitions as the styles resolve, which reads as a
+ * flash of unstyled content rather than as an intentional animation. */
+.aria-booting *,
+.aria-booting *::before,
+.aria-booting *::after {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}
+
+/* Message and log entries share one entrance: 8px up, fading in. */
+@keyframes aria-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.aria-enter {
+  animation: aria-enter 150ms var(--aria-ease);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * HUD
+ *
+ * The interface reads as instrumentation rather than a chat window:
+ * technical type, thin luminous rules, panels that look machined rather
+ * than drawn. Everything below is built from the accent hue, so the
+ * colour picker in Settings still drives the whole thing.
+ * ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Orbitron for anything that reads as a label on an instrument;
+   * IBM Plex Sans for prose; Plex Mono for anything numeric, where
+   * tabular figures stop values jittering as they update. */
+  --font-display: 'Orbitron', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* One luminous edge colour, reused everywhere so panels feel like one
+   * material rather than a collection of borders. */
+  --hud-edge: hsl(var(--accent-h) 80% 60% / 0.22);
+  --hud-edge-bright: hsl(var(--accent-h) 85% 62% / 0.5);
+  --hud-glow: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+}
+
+body {
+  font-family: var(--font-body);
+  font-feature-settings: 'cv05' 1, 'ss01' 1;
+}
+
+/* Numbers that change in place — clocks, token counts, latencies — must not
+ * shift width as they tick. */
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Display type ────────────────────────────────────────────────── */
+
+.hud-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+  color: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* A short rule leading into the label, like a callout on a schematic. */
+.hud-title::before {
+  content: '';
+  width: 0.9rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor);
+  flex-shrink: 0;
+}
+
+/* And a hairline running out to the panel edge. */
+.hud-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hud-edge), transparent);
+}
+
+.hud-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-shadow: 0 0 18px var(--hud-glow);
+}
+
+.hud-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ── Panels ──────────────────────────────────────────────────────── */
+
+.hud-panel {
+  position: relative;
+  background: linear-gradient(
+    160deg,
+    hsl(var(--card) / 0.72),
+    hsl(var(--background) / 0.55)
+  );
+  border: 1px solid var(--hud-edge);
+  backdrop-filter: blur(12px);
+}
+
+/* Corner brackets, drawn with two gradients rather than four elements.
+ * This is the detail that makes a rectangle read as an instrument panel
+ * instead of a card. */
+.hud-panel::before,
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  width: 0.85rem;
+  height: 0.85rem;
+  pointer-events: none;
+  border-color: var(--hud-edge-bright);
+}
+.hud-panel::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+.hud-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+
+/* A panel that is doing something gets a live edge. */
+.hud-panel-active {
+  border-color: var(--hud-edge-bright);
+  box-shadow:
+    inset 0 0 24px -18px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5),
+    0 0 22px -14px var(--hud-glow);
+}
+
+/* ── Instrument rows ─────────────────────────────────────────────── */
+
+.hud-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid hsl(var(--accent-h) 60% 50% / 0.07);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+.hud-row:last-child {
+  border-bottom: none;
+}
+.hud-row dt {
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.06em;
+}
+.hud-row dd {
+  color: hsl(var(--foreground));
+  text-align: right;
+}
+
+/* ── Status dot ──────────────────────────────────────────────────── */
+
+.hud-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+.hud-dot-live {
+  animation: hud-breathe 2.4s ease-in-out infinite;
+}
+@keyframes hud-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Scanline sweep ──────────────────────────────────────────────
+ * A single faint band travelling down the panel. Slow enough to read as
+ * ambience rather than motion, and deliberately not applied to the
+ * transcript, where anything moving behind text is a nuisance. */
+.hud-scan {
+  position: relative;
+  overflow: hidden;
+}
+.hud-scan::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 40%;
+  top: -40%;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.045),
+    transparent
+  );
+  animation: hud-sweep 7s linear infinite;
+}
+@keyframes hud-sweep {
+  to { top: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-scan::after,
+  .hud-dot-live {
+    animation: none;
+  }
+  .hud-scan::after { opacity: 0; }
+}
+
+/*
+ * Boot sequence: horizontal scanlines with a brighter band sweeping down over
+ * them. Drawn with gradients rather than an image or a canvas — there is
+ * nothing to load, nothing to fail, and it costs one composited layer.
+ */
+.boot-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background: repeating-linear-gradient(
+    to bottom,
+    hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.055) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+.boot-sweep {
+  position: absolute;
+  inset-inline: 0;
+  height: 42%;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.11),
+    transparent
+  );
+  animation: boot-sweep 2.2s var(--aria-ease) infinite;
+}
+
+@keyframes boot-sweep {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(240%);
+  }
+}
+
+/* The sweep is decorative motion; honour a reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  .boot-sweep {
+    animation: none;
+    opacity: 0.35;
+  }
+}

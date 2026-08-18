@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jarvis — download</title>
+    <meta
+      name="description"
+      content="A cross-platform AI assistant that can see your screen, control your device, and get things done. Free and open source."
+    />
+    <meta name="theme-color" content="#05080d" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:title" content="Jarvis — an AI assistant with hands" />
+    <meta
+      property="og:description"
+      content="See your screen, control your mouse and keyboard, manage files, drive a browser. Desktop and mobile."
+    />
+    <meta property="og:type" content="website" />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%2305080d'/%3E%3Ccircle cx='50' cy='50' r='28' fill='%232ad4ff'/%3E%3C/svg%3E"
+    />
+
+    <style>
+      :root {
+        --bg: #05080d;
+        --surface: #0a1017;
+        --border: #1b2733;
+        --text: #e2edf2;
+        --muted: #8296a5;
+        --accent: #2ad4ff;
+        --accent-dim: #0e9fd0;
+        --radius: 14px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      /* Faint grid, matching the app's orb stage. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(42, 212, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(42, 212, 255, 0.04) 1px, transparent 1px);
+        background-size: 46px 46px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 940px;
+        margin: 0 auto;
+        padding: 0 20px 80px;
+      }
+
+      /* ── Hero ── */
+
+      header {
+        text-align: center;
+        padding: 76px 0 40px;
+      }
+
+      .orb {
+        width: 132px;
+        height: 132px;
+        margin: 0 auto 30px;
+        position: relative;
+      }
+
+      .orb-glow {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: var(--accent);
+        filter: blur(38px);
+        opacity: 0.3;
+        animation: breathe 4s ease-in-out infinite;
+      }
+
+      .orb-ring {
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(42, 212, 255, 0.4);
+        border-radius: 50%;
+        animation: spin 24s linear infinite;
+      }
+
+      .orb-core {
+        position: absolute;
+        inset: 18%;
+        border-radius: 50%;
+        background: radial-gradient(circle at 38% 32%, #eafcff, #2ad4ff 45%, #063d55);
+        box-shadow: 0 0 50px rgba(42, 212, 255, 0.55);
+        animation: breathe 4s ease-in-out infinite;
+      }
+
+      @keyframes breathe {
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.06); opacity: 1; }
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      h1 {
+        font-size: clamp(2.2rem, 6vw, 3.4rem);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-bottom: 14px;
+      }
+
+      .tagline {
+        color: var(--muted);
+        font-size: clamp(1rem, 2.4vw, 1.18rem);
+        max-width: 540px;
+        margin: 0 auto;
+      }
+
+      /* ── Primary download ── */
+
+      .primary {
+        background: linear-gradient(180deg, rgba(42, 212, 255, 0.09), rgba(42, 212, 255, 0.02));
+        border: 1px solid rgba(42, 212, 255, 0.28);
+        border-radius: var(--radius);
+        padding: 30px;
+        margin: 40px 0 26px;
+        text-align: center;
+      }
+
+      .detected {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--accent);
+        color: #04222e;
+        font-weight: 650;
+        font-size: 1.02rem;
+        padding: 13px 30px;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 26px rgba(42, 212, 255, 0.3);
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid var(--border);
+        font-weight: 500;
+        font-size: 0.9rem;
+        padding: 10px 20px;
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--accent);
+        box-shadow: none;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 14px;
+      }
+
+      code {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-size: 0.86em;
+      }
+
+      /* ── Sections ── */
+
+      h2 {
+        font-size: 1.06rem;
+        font-weight: 620;
+        margin: 44px 0 16px;
+        letter-spacing: -0.01em;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        padding: 16px 18px;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: border-color 0.15s ease, transform 0.15s ease;
+      }
+
+      .card:hover {
+        border-color: rgba(42, 212, 255, 0.45);
+        transform: translateY(-1px);
+      }
+
+      .card-title {
+        font-weight: 600;
+        font-size: 0.94rem;
+        margin-bottom: 3px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .card-sub {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+      }
+
+      /* ── QR ── */
+
+      .qr-row {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        flex-wrap: wrap;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+      }
+
+      .qr-box {
+        width: 132px;
+        height: 132px;
+        background: #fff;
+        border-radius: 9px;
+        padding: 8px;
+        flex-shrink: 0;
+      }
+
+      .qr-box svg { display: block; width: 100%; height: 100%; }
+
+      .feature-list {
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 8px 22px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .feature-list li::before {
+        content: '▸';
+        color: var(--accent);
+        margin-right: 9px;
+      }
+
+      .steps {
+        counter-reset: step;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+
+      .steps li {
+        counter-increment: step;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 13px 16px 13px 46px;
+        position: relative;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .steps li::before {
+        content: counter(step);
+        position: absolute;
+        left: 15px;
+        top: 13px;
+        width: 20px;
+        height: 20px;
+        background: rgba(42, 212, 255, 0.14);
+        color: var(--accent);
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+
+      footer {
+        margin-top: 60px;
+        padding-top: 26px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      footer a { color: var(--accent); text-decoration: none; }
+      footer a:hover { text-decoration: underline; }
+
+      .hidden { display: none !important; }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; transition: none !important; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="orb" aria-hidden="true">
+          <div class="orb-glow"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-core"></div>
+        </div>
+        <h1>Jarvis</h1>
+        <p class="tagline">
+          An AI assistant with hands. It sees your screen, controls your mouse and keyboard,
+          manages your files and drives your browser — by voice or by text.
+        </p>
+      </header>
+
+      <!-- Filled in by detect() below -->
+      <section class="primary">
+        <div class="detected" id="detected">Detecting your device…</div>
+        <a class="btn" id="primary-download" href="#all">
+          <span id="primary-label">See all downloads</span>
+        </a>
+        <div class="hint" id="primary-hint"></div>
+      </section>
+
+      <!-- Mobile QR, shown only to desktop visitors -->
+      <section id="qr-section" class="hidden">
+        <h2>Get it on your phone</h2>
+        <div class="qr-row">
+          <div class="qr-box" id="qr-code"></div>
+          <div>
+            <div style="font-weight: 600; margin-bottom: 4px">Scan to open this page on your phone</div>
+            <div style="color: var(--muted); font-size: 0.88rem">
+              Android installs from an APK directly. iOS goes through TestFlight.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <h2 id="all">All downloads</h2>
+      <div class="grid" id="all-downloads"></div>
+
+      <h2>Installing</h2>
+      <ol class="steps" id="install-steps"></ol>
+
+      <h2>What it can do</h2>
+      <ul class="feature-list">
+        <li>See and describe your screen</li>
+        <li>Click, type and drive any application</li>
+        <li>Find, organise and edit files</li>
+        <li>Search the web and read pages</li>
+        <li>Fill in forms and download files</li>
+        <li>Run scripts and shell commands</li>
+        <li>Manage windows and applications</li>
+        <li>Control volume, brightness and power</li>
+        <li>Install and update system packages</li>
+        <li>Answer by voice, fully offline</li>
+        <li>Analyse photos from your camera</li>
+        <li>Set timers and reminders</li>
+      </ul>
+
+      <h2>Runs entirely on your machine</h2>
+      <p style="color: var(--muted); font-size: 0.92rem; max-width: 640px">
+        Pair Jarvis with <a href="https://ollama.com" style="color: var(--accent)">Ollama</a> and
+        nothing leaves your device — no API key, no account, no network. Cloud backends
+        (Groq, OpenAI, Anthropic, Gemini) are there if you want the extra capability. There is
+        no telemetry either way.
+      </p>
+
+      <footer>
+        <p>
+          Free and open source under the MIT licence ·
+          <a href="https://github.com/jarvis-assistant/jarvis">Source</a> ·
+          <a href="https://github.com/jarvis-assistant/jarvis/releases">All releases</a>
+        </p>
+        <p style="margin-top: 8px; font-size: 0.78rem">
+          Jarvis can control your device. Read what it asks before you approve it.
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      // Point this at the repository the release artifacts live in.
+      const REPO = 'jarvis-assistant/jarvis';
+      const LATEST = `https://github.com/${REPO}/releases/latest`;
+      const DL = (file) => `${LATEST}/download/${file}`;
+
+      /* ── Platform detection ──────────────────────────────────────
+       * navigator.platform and userAgent are both unreliable on their own:
+       * iPadOS reports as a Mac, and Windows on ARM lies about its CPU. Combine
+       * the signals and prefer the ones that cannot be spoofed by compat modes.
+       */
+      function detect() {
+        const ua = navigator.userAgent;
+        const uaData = navigator.userAgentData;
+        const platform = (uaData?.platform || navigator.platform || '').toLowerCase();
+        const touch = navigator.maxTouchPoints > 1;
+
+        if (/android/i.test(ua)) return { os: 'android', mobile: true };
+
+        // An iPad running iPadOS 13+ claims to be a Mac; the touch points give it away.
+        if (/iphone|ipad|ipod/i.test(ua) || (platform.includes('mac') && touch)) {
+          return { os: 'ios', mobile: true };
+        }
+
+        if (/win/i.test(platform) || /windows/i.test(ua)) return { os: 'windows', mobile: false };
+        if (/mac/i.test(platform) || /mac os x/i.test(ua)) return { os: 'macos', mobile: false };
+
+        if (/linux|x11|cros/i.test(platform) || /linux/i.test(ua)) {
+          // Distro sniffing from a browser is guesswork; the AppImage is the
+          // safe universal answer, with the native packages listed below it.
+          let distro = 'generic';
+          if (/arch|manjaro|endeavour/i.test(ua)) distro = 'arch';
+          else if (/fedora|red hat|rhel/i.test(ua)) distro = 'fedora';
+          else if (/ubuntu|debian|mint/i.test(ua)) distro = 'debian';
+          return { os: 'linux', distro, mobile: false };
+        }
+
+        return { os: 'unknown', mobile: false };
+      }
+
+      const ALL = [
+        { os: 'linux', icon: '🐧', title: 'Arch Linux', file: 'jarvis-1.0.0-1-x86_64.pkg.tar.zst', sub: '.pkg.tar.zst' },
+        { os: 'linux', icon: '🎩', title: 'Fedora / RHEL', file: 'jarvis-1.0.0-1.x86_64.rpm', sub: '.rpm' },
+        { os: 'linux', icon: '🟠', title: 'Ubuntu / Debian', file: 'jarvis_1.0.0_amd64.deb', sub: '.deb' },
+        { os: 'linux', icon: '📦', title: 'Any Linux', file: 'jarvis_1.0.0_amd64.AppImage', sub: '.AppImage — universal' },
+        { os: 'windows', icon: '🪟', title: 'Windows 10/11', file: 'Jarvis_1.0.0_x64_en-US.msi', sub: '.msi installer' },
+        { os: 'windows', icon: '⚡', title: 'Windows portable', file: 'jarvis-portable.exe', sub: '.exe — no install' },
+        { os: 'macos', icon: '🍎', title: 'macOS 12+', file: 'Jarvis_1.0.0_universal.dmg', sub: '.dmg — Intel + Apple Silicon' },
+        { os: 'android', icon: '🤖', title: 'Android 8+', file: 'app-debug.apk', sub: '.apk — sideload' },
+        { os: 'ios', icon: '📱', title: 'iOS 15+', url: 'https://testflight.apple.com/join/jarvis', sub: 'TestFlight beta' },
+      ];
+
+      const PRIMARY = {
+        linux: { arch: 0, fedora: 1, debian: 2, generic: 3 },
+        windows: 4,
+        macos: 6,
+        android: 7,
+        ios: 8,
+      };
+
+      const STEPS = {
+        arch: ['Download the .pkg.tar.zst', 'Run <code>sudo pacman -U jarvis-*.pkg.tar.zst</code>', 'Launch Jarvis and follow the setup wizard'],
+        fedora: ['Download the .rpm', 'Run <code>sudo dnf install ./jarvis-*.rpm</code>', 'Launch Jarvis and follow the setup wizard'],
+        debian: ['Download the .deb', 'Run <code>sudo apt install ./jarvis_*.deb</code>', 'Launch Jarvis and follow the setup wizard'],
+        generic: ['Download the .AppImage', 'Run <code>chmod +x jarvis_*.AppImage</code>', 'Run <code>./jarvis_*.AppImage</code>'],
+        windows: ['Download the .msi', 'Run it — Windows may warn about an unknown publisher; choose "More info" then "Run anyway"', 'Launch Jarvis from the Start menu'],
+        macos: ['Download the .dmg and drag Jarvis to Applications', 'Right-click Jarvis → Open (needed once, because the build is unsigned)', 'Grant Screen Recording and Accessibility in System Settings → Privacy & Security'],
+        android: ['Download the .apk', 'Allow installing from unknown sources when prompted', 'Open Jarvis and grant microphone access'],
+        ios: ['Install TestFlight from the App Store', 'Open the TestFlight invite link', 'Install Jarvis and grant microphone access'],
+      };
+
+      const device = detect();
+
+      /* ── Primary button ── */
+      const key = device.os === 'linux' ? device.distro : device.os;
+      const index = device.os === 'linux' ? PRIMARY.linux[device.distro] : PRIMARY[device.os];
+      const choice = ALL[index ?? 3];
+
+      const LABELS = {
+        arch: 'Arch Linux', fedora: 'Fedora / RHEL', debian: 'Ubuntu / Debian',
+        generic: 'Linux', windows: 'Windows', macos: 'macOS',
+        android: 'Android', ios: 'iOS', unknown: 'your device',
+      };
+
+      if (device.os !== 'unknown' && choice) {
+        document.getElementById('detected').textContent = `Detected ${LABELS[key] || key}`;
+        document.getElementById('primary-label').textContent =
+          `Download for ${LABELS[key] || key}`;
+        document.getElementById('primary-download').href = choice.url || DL(choice.file);
+        document.getElementById('primary-hint').innerHTML =
+          choice.sub + ' · <a href="#all" style="color:var(--muted)">other platforms</a>';
+      } else {
+        document.getElementById('detected').textContent = 'Pick your platform';
+      }
+
+      /* ── All downloads ── */
+      document.getElementById('all-downloads').innerHTML = ALL.map((entry) => `
+        <a class="card" href="${entry.url || DL(entry.file)}">
+          <div class="card-title"><span>${entry.icon}</span>${entry.title}</div>
+          <div class="card-sub">${entry.sub}</div>
+        </a>
+      `).join('');
+
+      /* ── Install steps ── */
+      const steps = STEPS[key] || STEPS.generic;
+      document.getElementById('install-steps').innerHTML =
+        steps.map((s) => `<li>${s}</li>`).join('');
+
+      /* ── QR code ──────────────────────────────────────────────────
+       * Rendered inline rather than pulled from an API: the page must work
+       * offline and from a file:// URL, and a third-party image request would
+       * leak every visitor to another host.
+       *
+       * Numeric-free byte-mode QR, version 4 (33x33), error correction L.
+       */
+      function renderQR(text, target) {
+        const qr = buildQR(text);
+        const n = qr.length;
+        const cell = 100 / n;
+
+        let path = '';
+        for (let y = 0; y < n; y++) {
+          for (let x = 0; x < n; x++) {
+            if (qr[y][x]) {
+              path += `M${(x * cell).toFixed(3)} ${(y * cell).toFixed(3)}h${cell.toFixed(3)}v${cell.toFixed(3)}h-${cell.toFixed(3)}z`;
+            }
+          }
+        }
+
+        target.innerHTML =
+          `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QR code linking to this page">` +
+          `<path d="${path}" fill="#05080d"/></svg>`;
+      }
+
+      /* Minimal QR encoder: byte mode, EC level L, smallest fitting version. */
+      function buildQR(text) {
+        const data = new TextEncoder().encode(text);
+
+        // Versions 1-6 only. Version 7 and up need version-information blocks
+        // and multiple alignment patterns, neither of which is implemented
+        // here — 134 bytes is far more than any URL this page produces.
+        const CAP = [17, 32, 53, 78, 106, 134];
+        let version = CAP.findIndex((c) => data.length + 2 <= c) + 1;
+        if (version < 1) throw new Error('text too long for this encoder');
+
+        const size = version * 4 + 17;
+        const ECC_CODEWORDS = [7, 10, 15, 20, 26, 18];
+        const TOTAL = [26, 44, 70, 100, 134, 172];
+        const BLOCKS = [1, 1, 1, 1, 1, 2];
+
+        const totalCodewords = TOTAL[version - 1];
+        const eccPerBlock = ECC_CODEWORDS[version - 1];
+        const blocks = BLOCKS[version - 1];
+        const dataCodewords = totalCodewords - eccPerBlock * blocks;
+
+        // ── Bit stream: mode + length + payload + terminator ──
+        const bits = [];
+        const push = (value, length) => {
+          for (let i = length - 1; i >= 0; i--) bits.push((value >> i) & 1);
+        };
+
+        push(0b0100, 4);        // byte mode
+        push(data.length, 8);   // character count — 8 bits for versions 1-9
+        for (const byte of data) push(byte, 8);
+
+        const capacityBits = dataCodewords * 8;
+        for (let i = 0; i < 4 && bits.length < capacityBits; i++) bits.push(0);
+        while (bits.length % 8 !== 0) bits.push(0);
+
+        const codewords = [];
+        for (let i = 0; i < bits.length; i += 8) {
+          codewords.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+        }
+        // Pad alternately with the two standard bytes.
+        const PAD = [0xec, 0x11];
+        for (let i = 0; codewords.length < dataCodewords; i++) {
+          codewords.push(PAD[i % 2]);
+        }
+
+        // ── Reed-Solomon over GF(256) ──
+        const EXP = new Uint8Array(512);
+        const LOG = new Uint8Array(256);
+        for (let i = 0, x = 1; i < 255; i++) {
+          EXP[i] = x;
+          LOG[x] = i;
+          x <<= 1;
+          if (x & 0x100) x ^= 0x11d;   // the QR generator polynomial
+        }
+        for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+
+        const mul = (a, b) => (a === 0 || b === 0 ? 0 : EXP[LOG[a] + LOG[b]]);
+
+        function generator(degree) {
+          let poly = [1];
+          for (let i = 0; i < degree; i++) {
+            const next = new Array(poly.length + 1).fill(0);
+            for (let j = 0; j < poly.length; j++) {
+              next[j] ^= mul(poly[j], EXP[i]);
+              next[j + 1] ^= poly[j];
+            }
+            poly = next;
+          }
+          // Built up lowest-degree-first; `ecc` indexes it highest-first.
+          return poly.reverse();
+        }
+
+        function ecc(block, count) {
+          const gen = generator(count);
+          const result = new Array(count).fill(0);
+          for (const byte of block) {
+            const factor = byte ^ result[0];
+            result.shift();
+            result.push(0);
+            for (let i = 0; i < count; i++) result[i] ^= mul(gen[i + 1], factor);
+          }
+          return result;
+        }
+
+        // ── Interleave data and ECC blocks ──
+        const perBlock = Math.floor(dataCodewords / blocks);
+        const dataBlocks = [];
+        const eccBlocks = [];
+        let offset = 0;
+        for (let b = 0; b < blocks; b++) {
+          const length = b < blocks - 1 ? perBlock : dataCodewords - offset;
+          const block = codewords.slice(offset, offset + length);
+          offset += length;
+          dataBlocks.push(block);
+          eccBlocks.push(ecc(block, eccPerBlock));
+        }
+
+        const final = [];
+        const maxData = Math.max(...dataBlocks.map((b) => b.length));
+        for (let i = 0; i < maxData; i++) {
+          for (const block of dataBlocks) if (i < block.length) final.push(block[i]);
+        }
+        for (let i = 0; i < eccPerBlock; i++) {
+          for (const block of eccBlocks) final.push(block[i]);
+        }
+
+        // ── Matrix ──
+        const matrix = Array.from({ length: size }, () => new Array(size).fill(null));
+
+        const placeFinder = (row, col) => {
+          for (let dy = -1; dy <= 7; dy++) {
+            for (let dx = -1; dx <= 7; dx++) {
+              const y = row + dy;
+              const x = col + dx;
+              if (y < 0 || y >= size || x < 0 || x >= size) continue;
+              const inRing =
+                (dy >= 0 && dy <= 6 && (dx === 0 || dx === 6)) ||
+                (dx >= 0 && dx <= 6 && (dy === 0 || dy === 6));
+              const inCore = dy >= 2 && dy <= 4 && dx >= 2 && dx <= 4;
+              matrix[y][x] = inRing || inCore ? 1 : 0;
+            }
+          }
+        };
+
+        placeFinder(0, 0);
+        placeFinder(0, size - 7);
+        placeFinder(size - 7, 0);
+
+        // Timing patterns
+        for (let i = 8; i < size - 8; i++) {
+          matrix[6][i] = i % 2 === 0 ? 1 : 0;
+          matrix[i][6] = i % 2 === 0 ? 1 : 0;
+        }
+
+        // Alignment pattern (single one, for versions 2-6)
+        if (version >= 2) {
+          const pos = size - 7;
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              const ring = Math.max(Math.abs(dy), Math.abs(dx));
+              matrix[pos + dy][pos + dx] = ring === 1 ? 0 : 1;
+            }
+          }
+        }
+
+        matrix[size - 8][8] = 1; // the always-dark module
+
+        // Reserve the format-information areas.
+        for (let i = 0; i < 9; i++) {
+          if (matrix[8][i] === null) matrix[8][i] = 0;
+          if (matrix[i][8] === null) matrix[i][8] = 0;
+        }
+        for (let i = size - 8; i < size; i++) {
+          if (matrix[8][i] === null) matrix[8][i] = 0;
+          if (matrix[i][8] === null) matrix[i][8] = 0;
+        }
+
+        // ── Place the data, zig-zagging up and down the columns ──
+        let bitIndex = 0;
+        const allBits = [];
+        for (const byte of final) {
+          for (let i = 7; i >= 0; i--) allBits.push((byte >> i) & 1);
+        }
+
+        let upward = true;
+        for (let col = size - 1; col > 0; col -= 2) {
+          if (col === 6) col--;   // the vertical timing column is skipped
+          for (let i = 0; i < size; i++) {
+            const row = upward ? size - 1 - i : i;
+            for (let c = 0; c < 2; c++) {
+              const x = col - c;
+              if (matrix[row][x] !== null) continue;
+              let bit = bitIndex < allBits.length ? allBits[bitIndex++] : 0;
+              // Mask pattern 0: (row + col) % 2 === 0
+              if ((row + x) % 2 === 0) bit ^= 1;
+              matrix[row][x] = bit;
+            }
+          }
+          upward = !upward;
+        }
+
+        /* ── Format information: EC level L, mask 0 ──
+         * Two copies, in the order the spec lays out. Bit 0 is the LSB.
+         * The first copy runs down column 8 then left along row 8; the second
+         * runs right along row 8 then up column 8. Getting the two copies
+         * transposed produces a matrix that looks correct but will not decode.
+         */
+        const FORMAT = 0b111011111000100;
+        const formatBit = (i) => (FORMAT >> i) & 1;
+
+        for (let i = 0; i <= 5; i++) matrix[i][8] = formatBit(i);
+        matrix[7][8] = formatBit(6);
+        matrix[8][8] = formatBit(7);
+        matrix[8][7] = formatBit(8);
+        for (let i = 9; i < 15; i++) matrix[8][14 - i] = formatBit(i);
+
+        for (let i = 0; i < 8; i++) matrix[8][size - 1 - i] = formatBit(i);
+        for (let i = 8; i < 15; i++) matrix[size - 15 + i][8] = formatBit(i);
+
+        matrix[size - 8][8] = 1; // the always-dark module
+
+        return matrix.map((row) => row.map((cell) => cell ?? 0));
+      }
+
+      // Only desktop visitors need a QR — a phone is already holding the page.
+      if (!device.mobile) {
+        const section = document.getElementById('qr-section');
+        section.classList.remove('hidden');
+        try {
+          renderQR(location.href.split('#')[0], document.getElementById('qr-code'));
+        } catch (e) {
+          section.classList.add('hidden');
+        }
+      }
+    </script>
+  </body>
+</html>
