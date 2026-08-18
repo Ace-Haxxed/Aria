@@ -137,7 +137,6 @@ pub async fn check_ollama(base_url_override: Option<String>) -> JResult<OllamaSt
     let models = fetch_models(&base).await;
     let latency_ms = started.elapsed().as_millis() as u64;
 
-    let models = models;
     Ok(OllamaStatus {
         running: models.is_some(),
         // A remote endpoint has no local binary, so a running server counts as

@@ -115,7 +115,7 @@ async fn register_hotkeys(
         };
 
         for candidate in attempts {
-            match try_register(&manager, &action, &candidate) {
+            match try_register(manager, &action, &candidate) {
                 Ok(()) => {
                     outcome.accelerator = candidate;
                     outcome.registered = true;

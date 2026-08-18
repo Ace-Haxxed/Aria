@@ -328,7 +328,7 @@ async fn transcribe_offline(
         "en".into(),
     ];
 
-    let out = run_owned(&binary, &args).await;
+    let out = run_owned(binary, &args).await;
     let _ = std::fs::remove_file(&wav);
     let out = out?;
 

@@ -266,7 +266,7 @@ fn load_blocking(target: &'static ModelSpec) -> JResult<()> {
         .metadata
         .get("general.architecture")
         .and_then(|v| v.to_string().ok())
-        .and_then(|name| Architecture::from_gguf_name(&name));
+        .and_then(|name| Architecture::from_gguf_name(name));
 
     let architecture = declared.unwrap_or(target.architecture);
 

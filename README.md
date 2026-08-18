@@ -138,7 +138,7 @@ switched off or wiped from **Settings → Privacy**.
 
 ## Build from source
 
-**Needs:** Node 18+, Rust 1.77+, and the system dependencies the install scripts
+**Needs:** Node 18+, Rust 1.82+, and the system dependencies the install scripts
 handle.
 
 ```bash

@@ -54,5 +54,5 @@ fn set_if_unset(key: &str, value: &str) {
 /// Absent, or present but empty — an empty value carries no more information
 /// than an absent one, and some sessions export the variable blank.
 fn is_unset(key: &str) -> bool {
-    std::env::var_os(key).map_or(true, |v| v.is_empty())
+    std::env::var_os(key).is_none_or(|v| v.is_empty())
 }

@@ -243,7 +243,8 @@ pub async fn list_adapters() -> JResult<Vec<Adapter>> {
         });
     }
 
-    out.sort_by(|a, b| b.trained_at.cmp(&a.trained_at));
+    // Newest first.
+    out.sort_by_key(|a| std::cmp::Reverse(a.trained_at));
     Ok(out)
 }
 

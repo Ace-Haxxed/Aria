@@ -1129,8 +1129,8 @@ mod tests {
     fn normalisation_centres_each_coefficient() {
         let mut frames = vec![[1.0f32; N_MFCC], [3.0f32; N_MFCC]];
         normalise(&mut frames);
-        for k in 0..N_MFCC {
-            let mean = (frames[0][k] + frames[1][k]) / 2.0;
+        for (k, (a, b)) in frames[0].iter().zip(frames[1].iter()).enumerate() {
+            let mean = (a + b) / 2.0;
             assert!(mean.abs() < 1e-6, "coefficient {k} not centred");
         }
     }

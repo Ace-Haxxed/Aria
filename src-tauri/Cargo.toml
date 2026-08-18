@@ -5,7 +5,7 @@ description = "ARIA — Adaptive Reasoning and Intelligence Assistant"
 authors = ["ARIA contributors"]
 repository = "https://github.com/Ace-Haxxed/Aria"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.82"
 
 [lib]
 name = "aria_lib"
