@@ -3,7 +3,7 @@ name = "nova"
 version = "1.0.0"
 description = "NOVA — Neural Operative Virtual Assistant"
 authors = ["NOVA contributors"]
-repository = "https://github.com/Ace-Haxxed/Aria"
+repository = "https://github.com/Ace-Haxxed/Nova"
 edition = "2021"
 rust-version = "1.82"
 

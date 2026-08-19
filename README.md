@@ -17,7 +17,7 @@ repositories, each stripped to one target.
 ## Install
 
 ```bash
-git clone https://github.com/Ace-Haxxed/Aria
+git clone https://github.com/Ace-Haxxed/Nova
 cd Nova
 bash scripts/install-arch.sh     # or install-fedora.sh / install-ubuntu.sh
 npm install
@@ -240,9 +240,9 @@ NOVA can control your device. Read what it asks before you approve it.
 
 | Platform | Repository | Install |
 |---|---|---|
-| **Android** | [Nova-Android](https://github.com/Ace-Haxxed/Aria-Android) | Open [Releases](https://github.com/Ace-Haxxed/Aria-Android/releases/latest) on the phone and tap the APK |
-| **iOS** | [Nova-Ios](https://github.com/Ace-Haxxed/Aria-Ios) | Xcode with a free Apple ID (7-day cert) |
-| **Debian / Ubuntu** | [Nova-Debian](https://github.com/Ace-Haxxed/Aria-Debian) | `scripts/install-debian.sh`, then `scripts/install.sh` |
-| **Fedora** | [Nova-Fedora](https://github.com/Ace-Haxxed/Aria-Fedora) | `scripts/install-fedora.sh`, then `scripts/install.sh` |
-| **Windows** | [Nova-Windows](https://github.com/Ace-Haxxed/Aria-Windows) | `scripts\install-windows.ps1`, then build the `.msi` |
-| **macOS** | [Nova-Mac](https://github.com/Ace-Haxxed/Aria-Mac) | `scripts/install-mac.sh`, then build the `.dmg` |
+| **Android** | [Nova-Android](https://github.com/Ace-Haxxed/Nova-Android) | Open [Releases](https://github.com/Ace-Haxxed/Nova-Android/releases/latest) on the phone and tap the APK |
+| **iOS** | [Nova-Ios](https://github.com/Ace-Haxxed/Nova-Ios) | Xcode with a free Apple ID (7-day cert) |
+| **Debian / Ubuntu** | [Nova-Debian](https://github.com/Ace-Haxxed/Nova-Debian) | `scripts/install-debian.sh`, then `scripts/install.sh` |
+| **Fedora** | [Nova-Fedora](https://github.com/Ace-Haxxed/Nova-Fedora) | `scripts/install-fedora.sh`, then `scripts/install.sh` |
+| **Windows** | [Nova-Windows](https://github.com/Ace-Haxxed/Nova-Windows) | `scripts\install-windows.ps1`, then build the `.msi` |
+| **macOS** | [Nova-Mac](https://github.com/Ace-Haxxed/Nova-Macos) | `scripts/install-mac.sh`, then build the `.dmg` |
