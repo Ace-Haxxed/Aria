@@ -152,10 +152,22 @@ async function prefs() {
  */
 async function syncSettingsLLM(provider: Provider, model: string, apiKey?: string) {
   try {
-    const { useSettings } = await import('./settings');
+    const [{ useSettings }, { providerSpec }] = await Promise.all([
+      import('./settings'),
+      import('@/core/llm'),
+    ]);
+    const spec = providerSpec(provider);
+    // Everything `settings.setProvider` would have set, in one write. The
+    // wizard used to call that straight after saving a key, which repeated
+    // this work and added a key read and a second persist — five bridge round
+    // trips on a phone for one paste.
     useSettings.getState().updateLLM({
       provider,
-      ...(model ? { model } : {}),
+      baseUrl: spec.baseUrl,
+      visionModel: spec.defaultVisionModel,
+      // The store's model is preferred over the spec's: for OpenRouter it was
+      // resolved from the live catalogue, and the spec default is a static id.
+      ...(model ? { model } : { model: spec.defaultModel }),
       ...(apiKey ? { apiKey } : {}),
     });
   } catch {
@@ -363,13 +375,17 @@ export const useKeys = create<KeyState>((set, get) => ({
       await invoke('set_key', { provider, key: trimmed });
     } else {
       const P = await prefs();
-      await P.set({ key: PREF_KEY(provider), value: trimmed });
+      const writes: Array<Promise<unknown>> = [
+        P.set({ key: PREF_KEY(provider), value: trimmed }),
+      ];
       // Adopt a model this provider actually serves, unless one is already
       // chosen — otherwise the key authenticates and the first message 404s.
       if (!get().model || get().activeProvider !== provider) {
         const model = DEFAULT_MODEL_FOR[provider];
-        if (model) await P.set({ key: PREF_MODEL, value: model });
+        if (model) writes.push(P.set({ key: PREF_MODEL, value: model }));
       }
+      // In parallel, and never blocking the UI on a stalled bridge.
+      await withDeadline(Promise.all(writes), []);
     }
 
     set((s) => ({
@@ -386,7 +402,7 @@ export const useKeys = create<KeyState>((set, get) => ({
       await invoke('set_key', { provider, key: '' });
     } else {
       const P = await prefs();
-      await P.remove({ key: PREF_KEY(provider) });
+      await withDeadline(P.remove({ key: PREF_KEY(provider) }), undefined);
     }
     set((s) => ({
       keys: { ...s.keys, [provider]: '' },
@@ -400,12 +416,12 @@ export const useKeys = create<KeyState>((set, get) => ({
 
     if (!isTauri) {
       const P = await prefs();
-      await P.set({ key: PREF_ACTIVE, value: provider });
+      await withDeadline(P.set({ key: PREF_ACTIVE, value: provider }), undefined);
       // The model has to travel with the provider — each serves a different
       // catalogue, so keeping the old id points at something the new provider
       // has never heard of.
       const model = DEFAULT_MODEL_FOR[provider];
-      await P.set({ key: PREF_MODEL, value: model });
+      await withDeadline(P.set({ key: PREF_MODEL, value: model }), undefined);
       set({ model });
       await syncSettingsLLM(provider, model, get().keys[provider]);
       return;
@@ -427,7 +443,7 @@ export const useKeys = create<KeyState>((set, get) => ({
     await syncSettingsLLM(get().activeProvider, model, get().keys[get().activeProvider]);
     if (!isTauri) {
       const P = await prefs();
-      await P.set({ key: PREF_MODEL, value: model });
+      await withDeadline(P.set({ key: PREF_MODEL, value: model }), undefined);
       return;
     }
     const { invoke } = await import('@tauri-apps/api/core');

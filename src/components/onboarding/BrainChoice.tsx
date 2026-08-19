@@ -403,7 +403,9 @@ const KEY_LINKS: Partial<Record<LLMProvider, { label: string; url: string }>> = 
 };
 
 /** Long enough that a paste settles, short enough to feel live. */
-const VALIDATE_DEBOUNCE_MS = 800;
+// Long enough to not fire on every keystroke of a typed key, short enough
+// that a paste — which is how a key actually arrives — feels immediate.
+const VALIDATE_DEBOUNCE_MS = 300;
 
 function CloudSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void }) {
   const settings = useSettings((s) => s.settings);
@@ -450,7 +452,12 @@ function CloudSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void
             valid: ok,
             message: useKeys.getState().messages[forProvider] ?? '',
           });
-          if (ok) await setProvider(forProvider);
+          // No `setProvider` here. `saveKey` already mirrors the provider,
+          // model, vision model, base URL and key into `settings.llm`; calling
+          // it as well repeated all of that plus a key read and a second
+          // persist, which on a phone is several native round trips the user
+          // waits through — and it overwrote the live-resolved OpenRouter
+          // model with the static one from the spec.
         } catch (e) {
           setResult({ valid: false, message: humanise(e) });
         } finally {

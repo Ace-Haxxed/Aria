@@ -169,7 +169,11 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
         <TabsTrigger value="general">General</TabsTrigger>
         <TabsTrigger value="ai">AI</TabsTrigger>
         <TabsTrigger value="ai-speed">Speed</TabsTrigger>
-        {isDesktop && <TabsTrigger value="keys">API Keys</TabsTrigger>}
+        {/* Not desktop-only any more. This was hidden on mobile because the
+            key store only ever spoke to Tauri, so the page was inert there —
+            keys now persist through Capacitor Preferences, and hiding the tab
+            left a phone with no way to enter one at all. */}
+        <TabsTrigger value="keys">API Keys</TabsTrigger>
         <TabsTrigger value="voice">Voice</TabsTrigger>
         {isDesktop && <TabsTrigger value="hotkeys">Hotkeys</TabsTrigger>}
         <TabsTrigger value="permissions">Permissions</TabsTrigger>
