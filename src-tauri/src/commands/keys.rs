@@ -71,7 +71,8 @@ pub fn default_model_for(provider: &str) -> String {
     match provider {
         // Resolved from the live catalogue, never hardcoded.
         "openrouter" => "",
-        "groq" => "llama-3.1-8b-instant",
+        // Groq retired the Llama line; this one is live and tool-capable.
+        "groq" => "openai/gpt-oss-20b",
         "openai" => "gpt-4o-mini",
         "anthropic" => "claude-sonnet-4-5",
         "gemini" => "gemini-2.5-flash",

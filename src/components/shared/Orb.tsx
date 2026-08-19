@@ -6,9 +6,12 @@
  *
  *   idle      slow breathing pulse
  *   listening concentric ripples, driven by the real microphone level
- *   thinking  sweeping arc
+ *   thinking  a ring breathing in and out
  *   speaking  radial bars from the audio spectrum
- *   acting    rotating segments
+ *   acting    fixed segments brightening in sequence
+ *
+ * Nothing rotates. A spinner next to text being read pulls the eye for as long
+ * as the reply takes, so the busy states pulse in place instead.
  *
  * Drawn on a canvas rather than with CSS or motion components. The orb is the
  * one element on screen that animates continuously, and doing that with
@@ -343,20 +346,18 @@ function drawState(ctx: CanvasRenderingContext2D, state: AgentState, a: DrawArgs
     }
 
     case 'thinking': {
-      // A sweeping arc: unmistakably "working", and cheap to draw.
+      // A ring that breathes rather than a head that travels round it.
+      // Nothing here rotates: a spinner beside text you are trying to read
+      // pulls the eye continuously, and it is the one thing on screen for as
+      // long as a reply takes.
       const radius = baseRadius * 1.5;
-      const head = elapsed * 2.4;
-      ctx.beginPath();
-      ctx.arc(centre, centre, radius, head, head + Math.PI * 0.55);
-      ctx.strokeStyle = css(colour, 0.75);
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.stroke();
+      const pulse = 0.5 + Math.sin(elapsed * 2.2) * 0.5;
 
       ctx.beginPath();
       ctx.arc(centre, centre, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = css(colour, 0.12);
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = css(colour, 0.18 + pulse * 0.5);
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
       ctx.stroke();
       break;
     }
@@ -385,16 +386,19 @@ function drawState(ctx: CanvasRenderingContext2D, state: AgentState, a: DrawArgs
     }
 
     case 'acting': {
-      // Rotating segments — a mechanism turning, distinct from thinking's
-      // single sweep.
+      // Fixed segments that brighten in turn. Distinct from thinking's single
+      // ring, and still obviously busy — but the segments hold their position
+      // instead of turning, so nothing on screen is spinning.
       const radius = baseRadius * 1.45;
       const segments = 6;
       ctx.lineCap = 'butt';
       for (let i = 0; i < segments; i++) {
-        const from = elapsed * 1.6 + (i / segments) * Math.PI * 2;
+        const from = (i / segments) * Math.PI * 2;
+        // Each segment peaks a beat after the one before it.
+        const lit = 0.5 + Math.sin(elapsed * 3 - (i / segments) * Math.PI * 2) * 0.5;
         ctx.beginPath();
         ctx.arc(centre, centre, radius, from, from + Math.PI / segments);
-        ctx.strokeStyle = css(colour, 0.32 + (i / segments) * 0.5);
+        ctx.strokeStyle = css(colour, 0.2 + lit * 0.6);
         ctx.lineWidth = 3;
         ctx.stroke();
       }

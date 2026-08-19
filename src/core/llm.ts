@@ -55,19 +55,18 @@ export const PROVIDERS: ProviderSpec[] = [
     id: 'groq',
     label: 'Groq (fastest cloud, free tier)',
     needsApiKey: true,
-    // The 8B model is the free-tier default: it has five times the daily token
-    // allowance of the 70B (500K vs 100K) and fourteen times the requests
-    // (14,400 vs 1,000), which are the ceilings a free key actually hits.
-    defaultModel: 'llama-3.1-8b-instant',
-    defaultVisionModel: 'llama-3.1-8b-instant',
-    // Only models confirmed present on Groq. `mixtral-8x7b-32768`,
-    // `llama-3.1-70b-versatile` and the `llama3-groq-*-tool-use` fine-tunes
-    // are on Groq's own decommissioned list and 404 on first use.
+    // Groq has retired the whole Llama line. `llama-3.1-8b-instant` was the
+    // default here and no longer exists, so every first message on a fresh
+    // Groq key 404'd. These are the ids their `/models` endpoint returns
+    // today, and `gpt-oss-20b` was checked against a real tool call.
+    defaultModel: 'openai/gpt-oss-20b',
+    defaultVisionModel: 'openai/gpt-oss-20b',
     models: [
-      'llama-3.1-8b-instant',
-      'llama-3.3-70b-versatile',
-      'llama3-8b-8192',
-      'llama3-70b-8192',
+      'openai/gpt-oss-20b',
+      'openai/gpt-oss-120b',
+      'groq/compound-mini',
+      'groq/compound',
+      'qwen/qwen3.6-27b',
     ],
     baseUrl: 'https://api.groq.com/openai/v1',
     hint: 'Free API key from console.groq.com. Fastest option by a wide margin. The 8B model has the most generous free allowance.',

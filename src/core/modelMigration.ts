@@ -26,14 +26,23 @@ const RETIRED: Record<string, Record<string, string>> = {
     'gemini-pro-vision': 'gemini-2.5-flash',
   },
   groq: {
-    // Groq's own deprecations page lists all of these.
-    'mixtral-8x7b-32768': 'llama-3.1-8b-instant',
-    'llama-3.1-70b-versatile': 'llama-3.3-70b-versatile',
-    'llama3-groq-8b-8192-tool-use-preview': 'llama-3.1-8b-instant',
-    'llama3-groq-70b-8192-tool-use-preview': 'llama-3.3-70b-versatile',
-    'llama-3.2-90b-vision-preview': 'llama-3.3-70b-versatile',
-    'llama-3.2-11b-vision-preview': 'llama-3.1-8b-instant',
-    'gemma-7b-it': 'llama-3.1-8b-instant',
+    // Groq has now retired the entire Llama line, including the two models
+    // this table previously migrated *to* — so anyone repaired by an earlier
+    // version was moved onto an id that has since died as well. Everything
+    // lands on `gpt-oss-20b`, which their /models endpoint serves today and
+    // which was verified against a real tool call.
+    'mixtral-8x7b-32768': 'openai/gpt-oss-20b',
+    'llama-3.1-8b-instant': 'openai/gpt-oss-20b',
+    'llama-3.1-70b-versatile': 'openai/gpt-oss-120b',
+    'llama-3.3-70b-versatile': 'openai/gpt-oss-120b',
+    'llama3-8b-8192': 'openai/gpt-oss-20b',
+    'llama3-70b-8192': 'openai/gpt-oss-120b',
+    'llama3-groq-8b-8192-tool-use-preview': 'openai/gpt-oss-20b',
+    'llama3-groq-70b-8192-tool-use-preview': 'openai/gpt-oss-120b',
+    'llama-3.2-90b-vision-preview': 'openai/gpt-oss-120b',
+    'llama-3.2-11b-vision-preview': 'openai/gpt-oss-20b',
+    'gemma-7b-it': 'openai/gpt-oss-20b',
+    'gemma2-9b-it': 'openai/gpt-oss-20b',
   },
 };
 

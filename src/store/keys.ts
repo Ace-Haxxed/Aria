@@ -163,20 +163,44 @@ async function syncSettingsLLM(provider: Provider, model: string, apiKey?: strin
   }
 }
 
+/**
+ * Give up on the native bridge rather than hang on it.
+ *
+ * Capacitor plugin calls made during a cold start can sit unresolved until the
+ * bridge is up. Awaiting one on the path to the first render is what put a
+ * black screen on the phone, so every call here has a deadline and an empty
+ * answer is preferred to no answer.
+ */
+const BRIDGE_TIMEOUT_MS = 1_200;
+
+function withDeadline<T>(work: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), BRIDGE_TIMEOUT_MS)),
+  ]).catch(() => fallback);
+}
+
 async function mobileLoad(): Promise<Partial<KeyState>> {
   const P = await prefs();
-  const entries = await Promise.all(
-    PROVIDERS.map(async (p) => [p, (await P.get({ key: PREF_KEY(p) })).value ?? ''] as const),
-  );
-  const keys = Object.fromEntries(entries);
+  const read = (key: string) => withDeadline(P.get({ key }).then((r) => r.value ?? ''), '');
 
-  const active = ((await P.get({ key: PREF_ACTIVE })).value as Provider | null) ?? null;
-  const model = (await P.get({ key: PREF_MODEL })).value ?? '';
+  // In parallel: nine sequential bridge round trips is a slow first paint even
+  // when the bridge is healthy.
+  const [values, active, model] = await Promise.all([
+    Promise.all(PROVIDERS.map((p) => read(PREF_KEY(p)))),
+    read(PREF_ACTIVE) as Promise<Provider | ''>,
+    read(PREF_MODEL),
+  ]);
+  const keys = Object.fromEntries(PROVIDERS.map((p, i) => [p, values[i]]));
 
   // Prefer a provider that actually has a key, so a fresh install that only
   // ever had one key entered starts on it rather than on the default.
-  const resolved =
-    active && keys[active] ? active : (PROVIDERS.find((p) => keys[p]) ?? active ?? 'groq');
+  // `||`, not `??`: a missing preference reads back as an empty string rather
+  // than null, which `??` would happily accept as the active provider.
+  const resolved: Provider =
+    active && keys[active]
+      ? active
+      : (PROVIDERS.find((p) => keys[p]) || (active as Provider) || 'groq');
 
   return {
     activeProvider: resolved,
@@ -194,7 +218,7 @@ async function mobileLoad(): Promise<Partial<KeyState>> {
  * config that authenticates and then 404s on the first message.
  */
 const DEFAULT_MODEL_FOR: Record<Provider, string> = {
-  groq: 'llama-3.1-8b-instant',
+  groq: 'openai/gpt-oss-20b',
   openai: 'gpt-4o-mini',
   anthropic: 'claude-sonnet-4-5',
   gemini: 'gemini-2.5-flash',

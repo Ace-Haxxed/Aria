@@ -36,43 +36,42 @@ export interface ModelLimits {
 /**
  * Groq's current production models.
  *
- * `llama-3.1-8b-instant` is the free-tier default. It is not the largest, but
- * it has five times the daily token allowance of the 70B model and fourteen
- * times the daily request allowance — on a free key those ceilings are what
- * users actually hit, not the per-minute rate.
+ * Groq retired the entire Llama line, so the per-model free-tier figures that
+ * used to be quoted here no longer describe anything they serve. Rather than
+ * carry numbers that may be wrong, only the context window is stated — it is
+ * the one figure ARIA actually needs, for trimming history before a request.
  */
 export const GROQ_MODELS: ModelLimits[] = [
   {
-    id: 'llama-3.1-8b-instant',
-    label: 'Llama 3.1 8B Instant',
+    id: 'openai/gpt-oss-20b',
+    label: 'GPT-OSS 20B',
     context: 131_072,
-    tokensPerMinute: 6_000,
-    tokensPerDay: 500_000,
-    requestsPerDay: 14_400,
-    note: 'Best free-tier headroom — 500K tokens and 14,400 requests a day.',
+    note: 'Fast, supports tool calling. The default.',
     recommendedFree: true,
   },
   {
-    id: 'llama-3.3-70b-versatile',
-    label: 'Llama 3.3 70B Versatile',
+    id: 'openai/gpt-oss-120b',
+    label: 'GPT-OSS 120B',
     context: 131_072,
-    tokensPerMinute: 12_000,
-    tokensPerDay: 100_000,
-    requestsPerDay: 1_000,
-    note: 'Stronger reasoning, but only 100K tokens and 1,000 requests a day free.',
+    note: 'Stronger reasoning, correspondingly slower and heavier on quota.',
     recommendedPaid: true,
   },
   {
-    id: 'llama3-8b-8192',
-    label: 'Llama 3 8B',
-    context: 8_192,
-    note: 'Older 8B model with a small context window.',
+    id: 'groq/compound-mini',
+    label: 'Compound Mini',
+    context: 131_072,
+    note: "Groq's own agentic model, with built-in web access.",
   },
   {
-    id: 'llama3-70b-8192',
-    label: 'Llama 3 70B',
-    context: 8_192,
-    note: 'Older 70B model with a small context window.',
+    id: 'groq/compound',
+    label: 'Compound',
+    context: 131_072,
+    note: 'The larger Compound model.',
+  },
+  {
+    id: 'qwen/qwen3.6-27b',
+    label: 'Qwen 3.6 27B',
+    context: 131_072,
   },
 ];
 
