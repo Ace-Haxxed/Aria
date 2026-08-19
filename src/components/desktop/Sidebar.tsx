@@ -4,6 +4,7 @@ import {
   Camera,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   FolderOpen,
   Globe,
   MessageSquarePlus,
@@ -77,17 +78,20 @@ export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) 
     <aside
       className={cn(
         'relative flex h-full shrink-0 flex-col overflow-hidden transition-[width] duration-[600ms]',
-        collapsed ? 'w-0' : 'w-[200px]',
+        collapsed ? 'w-12' : 'w-[200px]',
       )}
       style={{
         background: 'hsl(222 71% 5% / 0.6)',
         backdropFilter: 'blur(10px)',
-        borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
+        borderRight: '1px solid var(--border-subtle)',
         transitionTimingFunction: 'var(--nova-ease)',
       }}
     >
-      {/* Held at full width while collapsing so the contents slide out as a
-          block rather than reflowing to nothing on the way. */}
+      {collapsed ? (
+        <IconRail onExpand={onCollapse} onNew={startNew} onQuickAction={onQuickAction} />
+      ) : (
+      /* Held at full width while collapsing so the contents slide out as a
+         block rather than reflowing to nothing on the way. */
       <div className="flex h-full w-[200px] flex-col">
       <div className="p-3">
         {/* Outline by default, filling on hover — a solid cyan block here
@@ -212,6 +216,77 @@ export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) 
         Collapse
       </button>
       </div>
+      )}
     </aside>
+  );
+}
+
+/**
+ * The collapsed sidebar: 48px of icons.
+ *
+ * Collapsing used to take the panel to zero width, which removed the quick
+ * actions and the way back with it — the only route to either was the keyboard
+ * shortcut. At 48px the same actions stay one click away and the panel can
+ * still be reopened from where it was closed.
+ */
+function IconRail({
+  onExpand,
+  onNew,
+  onQuickAction,
+}: {
+  onExpand: () => void;
+  onNew: () => void;
+  onQuickAction: (prompt: string) => void;
+}) {
+  return (
+    <div className="flex h-full w-12 flex-col items-center py-3">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onNew}
+            aria-label="New conversation"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border
+              border-primary/50 text-primary transition-colors duration-150
+              hover:bg-primary hover:text-[hsl(var(--background))]"
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">New conversation</TooltipContent>
+      </Tooltip>
+
+      <div className="mt-3 flex flex-col gap-1.5">
+        {QUICK_ACTIONS.map((action) => (
+          <Tooltip key={action.label}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onQuickAction(action.prompt)}
+                aria-label={action.label}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border
+                  border-white/[0.07] bg-white/[0.03] text-muted-foreground
+                  transition-colors duration-150 hover:border-primary/40 hover:text-primary"
+              >
+                <action.icon className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{action.label}</TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onExpand}
+            aria-label="Expand sidebar"
+            className="mt-auto flex h-8 w-8 items-center justify-center rounded-lg
+              text-muted-foreground transition-colors duration-150 hover:text-primary"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">Expand</TooltipContent>
+      </Tooltip>
+    </div>
   );
 }

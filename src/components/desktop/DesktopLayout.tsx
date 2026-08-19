@@ -235,7 +235,7 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
                   state={agentState}
                   level={voice.level}
                   spectrum={voice.spectrum}
-                  size={80}
+                  size={72}
                   onClick={() => voice.toggleListening()}
                 />
               </Hint>
