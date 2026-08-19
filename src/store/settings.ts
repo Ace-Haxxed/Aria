@@ -13,7 +13,7 @@ import { migrateModels } from '@/core/modelMigration';
 import { isMobile, isTauri } from '@/platform';
 import { clamp } from '@/lib/utils';
 
-const SETTINGS_KEY = 'aria.settings';
+const SETTINGS_KEY = 'nova.settings';
 
 const ALL_CAPABILITIES: Capability[] = [
   'mouse',
@@ -63,7 +63,7 @@ export function defaultSettings(): Settings {
       sttEngine: isMobile ? 'native' : 'whisper-sidecar',
       ttsEngine: isMobile ? 'native' : 'piper-sidecar',
       wakeWordEnabled: false,
-      wakeWord: 'aria',
+      wakeWord: 'nova',
       wakeWordSensitivity: 7,
       activationSound: true,
       autoStopOnSilence: true,
@@ -189,7 +189,7 @@ export async function loadApiKey(provider: string): Promise<string | null> {
       return await desktop.getApiKey(provider);
     }
     const { Preferences } = await import('@capacitor/preferences');
-    const { value } = await Preferences.get({ key: `aria.key.${provider}` });
+    const { value } = await Preferences.get({ key: `nova.key.${provider}` });
     return value ?? null;
   } catch {
     return null;
@@ -204,9 +204,9 @@ export async function storeApiKey(provider: string, key: string): Promise<void> 
   }
   const { Preferences } = await import('@capacitor/preferences');
   if (key.trim()) {
-    await Preferences.set({ key: `aria.key.${provider}`, value: key });
+    await Preferences.set({ key: `nova.key.${provider}`, value: key });
   } else {
-    await Preferences.remove({ key: `aria.key.${provider}` });
+    await Preferences.remove({ key: `nova.key.${provider}` });
   }
 }
 
@@ -262,9 +262,9 @@ export const useSettings = create<SettingsState>((set, get) => {
         );
       }
 
-      // `~/.config/aria/keys.json` is authoritative for which provider and
+      // `~/.config/nova/keys.json` is authoritative for which provider and
       // model are in use — it is what the settings page writes and what
-      // `aria --keys` edits. Settings follows it rather than keeping a second,
+      // `nova --keys` edits. Settings follows it rather than keeping a second,
       // divergent answer.
       if (isTauri) {
         const { useKeys } = await import('./keys');

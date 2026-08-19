@@ -5,16 +5,16 @@
 //! while producing genuine OS-level input events.
 
 use super::{parse_combo, MouseButton, Point, ScrollDirection};
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use enigo::{Axis, Button, Coordinate, Direction, Enigo, Key, Keyboard as _, Mouse as _, Settings};
 
 fn enigo() -> JResult<Enigo> {
     Enigo::new(&Settings::default())
-        .map_err(|e| AriaError::msg(format!("could not open an input device: {e}")))
+        .map_err(|e| NovaError::msg(format!("could not open an input device: {e}")))
 }
 
-fn err(e: impl std::fmt::Display) -> AriaError {
-    AriaError::msg(format!("input event failed: {e}"))
+fn err(e: impl std::fmt::Display) -> NovaError {
+    NovaError::msg(format!("input event failed: {e}"))
 }
 
 fn button(b: MouseButton) -> Button {
@@ -118,7 +118,7 @@ fn key(name: &str) -> JResult<Key> {
             let mut chars = other.chars();
             match (chars.next(), chars.next()) {
                 (Some(c), None) => Key::Unicode(c),
-                _ => return Err(AriaError::msg(format!("unknown key `{other}`"))),
+                _ => return Err(NovaError::msg(format!("unknown key `{other}`"))),
             }
         }
     };
@@ -128,7 +128,7 @@ fn key(name: &str) -> JResult<Key> {
 pub fn press_key(combo: &str) -> JResult<()> {
     let parts = parse_combo(combo);
     if parts.is_empty() {
-        return Err(AriaError::msg("empty key combo"));
+        return Err(NovaError::msg("empty key combo"));
     }
     let (mods, keys): (Vec<String>, Vec<String>) = parts
         .iter()

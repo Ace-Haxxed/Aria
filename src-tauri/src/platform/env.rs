@@ -28,7 +28,7 @@ pub fn prepare() {
     // display managers and bare `startx`-style sessions do.
     //
     // It is deliberately *not* forced to GNOME unconditionally. That variable
-    // is how every portal implementation picks its backend and how ARIA
+    // is how every portal implementation picks its backend and how NOVA
     // picks its window-management path, so overwriting a real value would
     // break precisely the desktops that already work: a KDE session would be
     // handed the GNOME portal backend and lose window control, and Hyprland

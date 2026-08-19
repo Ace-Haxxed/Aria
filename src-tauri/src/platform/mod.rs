@@ -1,4 +1,4 @@
-//! Per-environment implementations of the primitives ARIA needs.
+//! Per-environment implementations of the primitives NOVA needs.
 //!
 //! `mod.rs` owns the dispatch table: it detects the environment once at startup
 //! and every call is then routed to the backend that actually works there.
@@ -10,7 +10,7 @@ pub mod portal;
 pub mod wayland;
 pub mod x11;
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use detect::{PlatformInfo, SessionType};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -166,7 +166,7 @@ pub async fn active_window() -> JResult<WindowInfo> {
     windows
         .into_iter()
         .find(|w| w.focused)
-        .ok_or_else(|| AriaError::msg("no focused window"))
+        .ok_or_else(|| NovaError::msg("no focused window"))
 }
 
 /// Resolve a user-supplied window reference — an exact id, or a case-insensitive

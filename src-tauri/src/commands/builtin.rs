@@ -1,7 +1,7 @@
 //! The built-in language model, running in this process.
 //!
 //! No Ollama, no sidecar, no network. A quantized GGUF is memory-mapped, and
-//! generation happens on a worker thread inside the ARIA binary, which is
+//! generation happens on a worker thread inside the NOVA binary, which is
 //! what makes the app work on a machine that has nothing else installed and no
 //! internet connection.
 //!
@@ -9,7 +9,7 @@
 //! seconds, and paying that on every question would make the built-in backend
 //! useless however fast the generation itself is.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use candle_transformers::generation::LogitsProcessor;
@@ -218,13 +218,13 @@ pub async fn builtin_status() -> JResult<BuiltinStatus> {
 #[tauri::command]
 pub async fn builtin_load_model(model_id: String) -> JResult<BuiltinStatus> {
     let target = spec(&model_id)
-        .ok_or_else(|| AriaError::msg(format!("`{model_id}` is not a model ARIA offers.")))?;
+        .ok_or_else(|| NovaError::msg(format!("`{model_id}` is not a model NOVA offers.")))?;
 
     // Loading is seconds of blocking CPU and file IO; it must not run on the
     // async runtime or every other command stalls behind it.
     tokio::task::spawn_blocking(move || load_blocking(target))
         .await
-        .map_err(|e| AriaError::msg(format!("the model could not be loaded: {e}")))??;
+        .map_err(|e| NovaError::msg(format!("the model could not be loaded: {e}")))??;
 
     builtin_status().await
 }
@@ -232,7 +232,7 @@ pub async fn builtin_load_model(model_id: String) -> JResult<BuiltinStatus> {
 fn load_blocking(target: &'static ModelSpec) -> JResult<()> {
     let path = model_path(target)?;
     if !path.exists() {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "{} has not been downloaded yet.",
             target.name
         )));
@@ -240,20 +240,20 @@ fn load_blocking(target: &'static ModelSpec) -> JResult<()> {
 
     let tok_path = tokenizer_path(target)?;
     if !tok_path.exists() {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "The tokenizer for {} is missing. Download the model again.",
             target.name
         )));
     }
 
     let tokenizer = Tokenizer::from_file(&tok_path)
-        .map_err(|e| AriaError::msg(format!("the tokenizer could not be read: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("the tokenizer could not be read: {e}")))?;
 
     let (device, _, _) = best_device();
 
     let mut file = std::fs::File::open(&path)?;
     let content = gguf_file::Content::read(&mut file).map_err(|e| {
-        AriaError::msg(format!(
+        NovaError::msg(format!(
             "{} is not a readable GGUF file ({e}). Download it again.",
             target.name
         ))
@@ -421,7 +421,7 @@ pub async fn builtin_chat(
         }
     })
     .await
-    .map_err(|e| AriaError::msg(format!("generation did not start: {e}")))?;
+    .map_err(|e| NovaError::msg(format!("generation did not start: {e}")))?;
 
     Ok(())
 }
@@ -435,7 +435,7 @@ fn generate(
     let mut guard = lock(model_slot());
     let loaded = guard
         .as_mut()
-        .ok_or_else(|| AriaError::msg("No built-in model is loaded yet."))?;
+        .ok_or_else(|| NovaError::msg("No built-in model is loaded yet."))?;
 
     let architecture = loaded.architecture;
     let prompt = build_prompt(architecture, &messages);
@@ -443,7 +443,7 @@ fn generate(
     let encoding = loaded
         .tokenizer
         .encode(prompt, true)
-        .map_err(|e| AriaError::msg(format!("the prompt could not be tokenised: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("the prompt could not be tokenised: {e}")))?;
     let mut tokens = encoding.get_ids().to_vec();
 
     // Leave room to answer: a prompt filling the whole window has nowhere to
@@ -566,15 +566,15 @@ fn last_row(logits: &Tensor) -> JResult<Tensor> {
     }
 }
 
-fn load_error(target: &ModelSpec, e: candle_core::Error) -> AriaError {
-    AriaError::msg(format!(
+fn load_error(target: &ModelSpec, e: candle_core::Error) -> NovaError {
+    NovaError::msg(format!(
         "{} could not be loaded ({e}). The file may be incomplete — try downloading it again.",
         target.name
     ))
 }
 
-fn candle_err(e: candle_core::Error) -> AriaError {
-    AriaError::msg(format!("the built-in model failed while generating: {e}"))
+fn candle_err(e: candle_core::Error) -> NovaError {
+    NovaError::msg(format!("the built-in model failed while generating: {e}"))
 }
 
 #[cfg(test)]

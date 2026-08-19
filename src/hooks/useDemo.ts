@@ -1,5 +1,5 @@
 /**
- * The scripted demo behind `aria --demo`.
+ * The scripted demo behind `nova --demo`.
  *
  * Each prompt goes through the ordinary send path, so what runs is the real
  * agent loop against the real provider with the real tools — the screen really

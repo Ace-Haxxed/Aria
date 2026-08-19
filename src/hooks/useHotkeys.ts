@@ -76,7 +76,7 @@ export function useHotkeys(handlers: HotkeyHandlers) {
             {
               label: 'Change shortcuts',
               run: () => {
-                window.dispatchEvent(new CustomEvent('aria:open-settings'));
+                window.dispatchEvent(new CustomEvent('nova:open-settings'));
               },
             },
           );
@@ -87,7 +87,7 @@ export function useHotkeys(handlers: HotkeyHandlers) {
           toast.error('Keyboard shortcuts could not be set up', humanise(e), {
             label: 'Change shortcuts',
             run: () => {
-              window.dispatchEvent(new CustomEvent('aria:open-settings'));
+              window.dispatchEvent(new CustomEvent('nova:open-settings'));
             },
           });
         }
@@ -109,7 +109,7 @@ export function useHotkeys(handlers: HotkeyHandlers) {
     void (async () => {
       const { listen } = await import('@tauri-apps/api/event');
 
-      unlistenHotkey = await listen<string>('aria://hotkey', (event) => {
+      unlistenHotkey = await listen<string>('nova://hotkey', (event) => {
         switch (event.payload) {
           case 'toggleWindow':
             handlers.toggleWindow();
@@ -126,7 +126,7 @@ export function useHotkeys(handlers: HotkeyHandlers) {
         }
       });
 
-      unlistenTray = await listen<string>('aria://tray', (event) => {
+      unlistenTray = await listen<string>('nova://tray', (event) => {
         if (event.payload === 'settings') handlers.openSettings?.();
         if (event.payload === 'mute') handlers.toggleMute?.();
       });

@@ -84,7 +84,7 @@ export function SystemCheck({ onAllDone }: { onAllDone: (allPassed: boolean) => 
       icon: Volume2,
       async run() {
         const { useVoiceTest } = await import('@/components/Settings/testSpeaker');
-        await useVoiceTest('ARIA online.');
+        await useVoiceTest('NOVA online.');
         return { ok: true, detail: 'Working' };
       },
     },
@@ -214,7 +214,7 @@ export function SystemCheck({ onAllDone }: { onAllDone: (allPassed: boolean) => 
               <Card
                 className={cn(
                   'flex items-center gap-3 p-3 transition-colors duration-150',
-                  current.status === 'ok' && 'border-aria-acting/30',
+                  current.status === 'ok' && 'border-nova-acting/30',
                   current.status === 'failed' && 'border-risk-medium/40',
                 )}
               >
@@ -224,7 +224,7 @@ export function SystemCheck({ onAllDone }: { onAllDone: (allPassed: boolean) => 
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{spec.label}</div>
                   {current.status === 'ok' && current.detail && (
-                    <div className="truncate text-xs text-aria-acting/90">{current.detail}</div>
+                    <div className="truncate text-xs text-nova-acting/90">{current.detail}</div>
                   )}
                   {current.status === 'failed' && (
                     <div className="text-xs leading-relaxed text-muted-foreground">
@@ -257,9 +257,9 @@ export function SystemCheck({ onAllDone }: { onAllDone: (allPassed: boolean) => 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
-          className="flex items-center gap-2.5 rounded-xl border border-aria-acting/40 bg-aria-acting/5 p-3.5"
+          className="flex items-center gap-2.5 rounded-xl border border-nova-acting/40 bg-nova-acting/5 p-3.5"
         >
-          <Check className="h-4 w-4 shrink-0 text-aria-acting" />
+          <Check className="h-4 w-4 shrink-0 text-nova-acting" />
           <p className="text-sm">
             Everything works. {settings.voice.wakeWordEnabled ? `Say "${settings.voice.wakeWord}"` : 'Tap the orb'} to talk.
           </p>
@@ -276,9 +276,9 @@ function StatusGlyph({ status }: { status: Status }) {
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-aria-acting/15"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-nova-acting/15"
       >
-        <Check className="h-3 w-3 text-aria-acting" />
+        <Check className="h-3 w-3 text-nova-acting" />
       </motion.span>
     );
   }

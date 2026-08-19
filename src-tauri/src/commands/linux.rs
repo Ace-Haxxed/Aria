@@ -5,11 +5,11 @@
 //! and prompting invisibly would just hang.
 
 use crate::platform::detect::PackageManager;
-use crate::util::{cap_output, has, run_owned, JResult, AriaError};
+use crate::util::{cap_output, has, run_owned, JResult, NovaError};
 
 fn pm() -> JResult<PackageManager> {
     match crate::platform::info().package_manager {
-        PackageManager::None => Err(AriaError::msg(
+        PackageManager::None => Err(NovaError::msg(
             "No supported package manager was found on this system.",
         )),
         other => Ok(other),
@@ -28,8 +28,8 @@ fn privileged(argv: &[&str]) -> JResult<(String, Vec<String>)> {
         args.insert(0, "-n".to_string());
         return Ok(("sudo".to_string(), args));
     }
-    Err(AriaError::msg(
-        "Neither pkexec nor sudo is available, so ARIA cannot run privileged commands.",
+    Err(NovaError::msg(
+        "Neither pkexec nor sudo is available, so NOVA cannot run privileged commands.",
     ))
 }
 
@@ -40,12 +40,12 @@ async fn run_privileged(argv: &[&str]) -> JResult<String> {
     if !out.ok() {
         let stderr = out.stderr.trim();
         if stderr.contains("password is required") || stderr.contains("a terminal is required") {
-            return Err(AriaError::msg(
+            return Err(NovaError::msg(
                 "This needs administrator rights, but no graphical authentication agent \
                  (polkit) is running. Start one, or run the command yourself in a terminal.",
             ));
         }
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "command failed (exit {}): {}",
             out.exit_code,
             if stderr.is_empty() {
@@ -167,13 +167,13 @@ pub async fn update_system() -> JResult<String> {
 #[tauri::command]
 pub async fn manage_service(name: String, action: String) -> JResult<String> {
     if !has("systemctl") {
-        return Err(AriaError::missing(
+        return Err(NovaError::missing(
             "systemctl",
             "Service management requires systemd.",
         ));
     }
     if !matches!(action.as_str(), "start" | "stop" | "restart" | "status") {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "unsupported service action `{action}`"
         )));
     }

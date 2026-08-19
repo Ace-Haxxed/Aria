@@ -10,7 +10,7 @@ use serde_json::json;
 #[tokio::main]
 async fn main() {
     // 1. The launch probe.
-    let status = aria_lib::commands::ollama::check_ollama(None)
+    let status = nova_lib::commands::ollama::check_ollama(None)
         .await
         .expect("check_ollama should not error");
     println!(
@@ -30,7 +30,7 @@ async fn main() {
         .expect("a running Ollama with no models cannot answer");
 
     // 2. The exact body `ollama_chat` would send.
-    let body = aria_lib::commands::llm::ollama_body(
+    let body = nova_lib::commands::llm::ollama_body(
         &model,
         json!([{ "role": "user", "content": "Reply with exactly: OK" }]),
         None,

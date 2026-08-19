@@ -37,7 +37,7 @@ const CONTEXT_BUDGET = 12_000;
  * kept short because every token here is spent on every single request, and
  * an 8B local model follows three firm rules better than ten soft ones.
  */
-export const DEFAULT_SYSTEM_PROMPT = `You are ARIA, an AI assistant with direct control of this computer.
+export const DEFAULT_SYSTEM_PROMPT = `You are NOVA, an AI assistant with direct control of this computer.
 
 HOW YOU ANSWER
 - Lead with the answer. No preamble, no restating the question, no "Certainly!".
@@ -316,7 +316,7 @@ export async function runAgentTurn(options: RunOptions): Promise<Message[]> {
     for (const call of calls) {
       // A turn the user stopped must not leave calls it never made looking as
       // though they are still running. With no confirmation step the log is
-      // the only record of what ARIA did, so "not run" has to be recorded as
+      // the only record of what NOVA did, so "not run" has to be recorded as
       // distinctly as "run and failed".
       if (signal.aborted) {
         for (const skipped of calls.slice(calls.indexOf(call))) {

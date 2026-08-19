@@ -4,7 +4,7 @@ import App from './App';
 import { useKeys } from './store/keys';
 
 // Bundled rather than fetched from a CDN: the CSP allows fonts only from
-// 'self', and ARIA has to look right with no internet at all.
+// 'self', and NOVA has to look right with no internet at all.
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
@@ -15,15 +15,15 @@ import './styles/globals.css';
 // Styles resolve a frame or two after the document appears. Without this the
 // window plays every entrance transition at once as they land, which looks
 // like a fault rather than an animation.
-document.documentElement.classList.add('aria-booting');
+document.documentElement.classList.add('nova-booting');
 requestAnimationFrame(() =>
-  requestAnimationFrame(() => document.documentElement.classList.remove('aria-booting')),
+  requestAnimationFrame(() => document.documentElement.classList.remove('nova-booting')),
 );
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root is missing from index.html');
 
-// ARIA is dark-theme only; the class is set in index.html but re-asserted
+// NOVA is dark-theme only; the class is set in index.html but re-asserted
 // here so a hot reload cannot drop it.
 document.documentElement.classList.add('dark');
 
@@ -75,7 +75,7 @@ class Boundary extends React.Component<
           overflowWrap: 'anywhere',
         }}
       >
-        <h1 style={{ fontSize: '15px', marginBottom: '12px' }}>ARIA failed to start</h1>
+        <h1 style={{ fontSize: '15px', marginBottom: '12px' }}>NOVA failed to start</h1>
         <p style={{ opacity: 0.75, marginBottom: '12px' }}>{String(error.message || error)}</p>
         <pre style={{ opacity: 0.5, fontSize: '11px', whiteSpace: 'pre-wrap' }}>
           {error.stack?.slice(0, 1500)}

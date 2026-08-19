@@ -26,7 +26,7 @@ fn main() {
     }
 
     let before = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
-    aria_lib::platform::env::prepare();
+    nova_lib::platform::env::prepare();
     let after = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
 
     println!("after:");
@@ -50,5 +50,5 @@ fn main() {
     }
 
     assert_eq!(std::env::var("GTK_USE_PORTAL").unwrap(), "1");
-    println!("OK: detected compositor is {:?}", aria_lib::platform::info().compositor);
+    println!("OK: detected compositor is {:?}", nova_lib::platform::info().compositor);
 }

@@ -9,7 +9,7 @@
 //! interrupted eventually, and starting again from zero each time is the
 //! difference between a feature that works and one that gets abandoned.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -256,7 +256,7 @@ fn hf_url(repo: &str, filename: &str) -> String {
 #[tauri::command]
 pub async fn download_builtin_model(app: AppHandle, model_id: String) -> JResult<String> {
     let spec = spec(&model_id)
-        .ok_or_else(|| AriaError::msg(format!("`{model_id}` is not a model ARIA offers.")))?;
+        .ok_or_else(|| NovaError::msg(format!("`{model_id}` is not a model NOVA offers.")))?;
 
     CANCEL.store(false, std::sync::atomic::Ordering::Relaxed);
 
@@ -340,7 +340,7 @@ async fn fetch_tokenizer(spec: &ModelSpec) -> JResult<()> {
     .await?;
 
     if !reply.ok {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "Could not download the tokenizer for this model. Check your internet connection and try again.",
         ));
     }
@@ -362,7 +362,7 @@ async fn download_with_resume(
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(30))
         .build()
-        .map_err(|e| AriaError::msg(format!("could not start the download: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not start the download: {e}")))?;
 
     let mut request = client.get(hf_url(spec.repo, spec.filename));
     if existing > 0 {
@@ -370,7 +370,7 @@ async fn download_with_resume(
     }
 
     let response = request.send().await.map_err(|_| {
-        AriaError::msg(
+        NovaError::msg(
             "Could not reach the model host. Check your internet connection and try again.",
         )
     })?;
@@ -381,11 +381,11 @@ async fn download_with_resume(
         // usable, it just means starting over.
         if status.as_u16() == 416 {
             let _ = std::fs::remove_file(&partial);
-            return Err(AriaError::msg(
+            return Err(NovaError::msg(
                 "The partial download could not be resumed. Press Retry to start it again.",
             ));
         }
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "The model host refused the download (HTTP {}). Try again shortly.",
             status.as_u16()
         )));
@@ -420,11 +420,11 @@ async fn download_with_resume(
         if CANCEL.load(std::sync::atomic::Ordering::Relaxed) {
             // The part-file is deliberately kept: cancelling should not throw
             // away a gigabyte the user already waited for.
-            return Err(AriaError::msg("Download paused. Press Resume to continue."));
+            return Err(NovaError::msg("Download paused. Press Resume to continue."));
         }
 
         let bytes = chunk.map_err(|_| {
-            AriaError::msg("The download was interrupted. Press Resume to continue where it stopped.")
+            NovaError::msg("The download was interrupted. Press Resume to continue where it stopped.")
         })?;
         file.write_all(&bytes)?;
 
@@ -488,7 +488,7 @@ async fn download_with_resume(
             // A file that fails its digest is worse than no file: it would
             // load as garbage or crash the loader.
             let _ = std::fs::remove_file(&partial);
-            return Err(AriaError::msg(
+            return Err(NovaError::msg(
                 "The downloaded model was corrupted in transit and has been discarded. Press Retry to download it again.",
             ));
         }
@@ -520,14 +520,14 @@ fn sha256_file(path: &std::path::Path) -> JResult<String> {
 #[tauri::command]
 pub async fn delete_builtin_model(model_id: String) -> JResult<()> {
     let spec = spec(&model_id)
-        .ok_or_else(|| AriaError::msg(format!("`{model_id}` is not a model ARIA offers.")))?;
+        .ok_or_else(|| NovaError::msg(format!("`{model_id}` is not a model NOVA offers.")))?;
 
     for path in [model_path(spec)?, tokenizer_path(spec)?] {
         if path.exists() {
             // To the trash: a 2 GB re-download is a harsh penalty for a
             // mis-click.
             trash::delete(&path)
-                .map_err(|e| AriaError::msg(format!("Could not remove the model: {e}")))?;
+                .map_err(|e| NovaError::msg(format!("Could not remove the model: {e}")))?;
         }
     }
     let partial = model_path(spec)?.with_extension("gguf.part");

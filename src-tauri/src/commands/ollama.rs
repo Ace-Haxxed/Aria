@@ -7,7 +7,7 @@
 //! is repaired without the user opening a terminal.
 
 use crate::platform::detect::{OsKind, PackageManager};
-use crate::util::{has, run, spawn_detached, JResult, AriaError};
+use crate::util::{has, run, spawn_detached, JResult, NovaError};
 use serde::Serialize;
 use serde_json::Value;
 use std::time::Duration;
@@ -284,7 +284,7 @@ pub async fn check_ollama_and_start(
     }
 
     // Fall back to running the server ourselves. Detached, so it outlives
-    // ARIA: a user who quits the app should not lose their model server.
+    // NOVA: a user who quits the app should not lose their model server.
     if fetch_models(&base).await.is_none() {
         let _ = spawn_detached("ollama", &["serve"]);
     }
@@ -318,10 +318,10 @@ pub async fn check_ollama_and_start(
 /// Install Ollama with the machine's own package manager.
 ///
 /// The upstream instructions pipe a script from the network into a root shell.
-/// That is not something ARIA will do on a user's behalf: it cannot be
+/// That is not something NOVA will do on a user's behalf: it cannot be
 /// audited before it runs, and it needs a password on a terminal this app does
 /// not have. The distro package is used instead, through the same polkit
-/// prompt every other install in ARIA goes through, so the user sees a
+/// prompt every other install in NOVA goes through, so the user sees a
 /// normal system authentication dialog and can decline.
 #[tauri::command]
 pub async fn install_ollama() -> JResult<String> {
@@ -335,8 +335,8 @@ pub async fn install_ollama() -> JResult<String> {
         PackageManager::Brew => "ollama",
         PackageManager::Winget => "Ollama.Ollama",
         PackageManager::None => {
-            return Err(AriaError::msg(
-                "ARIA could not find a package manager to install Ollama with. \
+            return Err(NovaError::msg(
+                "NOVA could not find a package manager to install Ollama with. \
                  Download it from https://ollama.com/download, then press Retry.",
             ))
         }
@@ -345,14 +345,14 @@ pub async fn install_ollama() -> JResult<String> {
     super::linux::install_package(package.to_string())
         .await
         .map_err(|e| {
-            AriaError::msg(format!(
+            NovaError::msg(format!(
                 "Ollama could not be installed automatically: {e} You can install it \
                  from https://ollama.com/download, or use a cloud provider instead."
             ))
         })?;
 
     if !has("ollama") {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "The install finished but Ollama is still not on this system. \
              Download it from https://ollama.com/download, or use a cloud provider instead.",
         ));
@@ -393,7 +393,7 @@ pub async fn ollama_pull(
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(15))
         .build()
-        .map_err(|e| AriaError::msg(format!("could not start the download: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not start the download: {e}")))?;
 
     let response = client
         .post(format!("{base}/api/pull"))
@@ -401,7 +401,7 @@ pub async fn ollama_pull(
         .send()
         .await
         .map_err(|_| {
-            AriaError::msg(
+            NovaError::msg(
                 "Ollama is not responding, so the model could not be downloaded. \
                  Make sure it is running and try again.",
             )
@@ -426,7 +426,7 @@ pub async fn ollama_pull(
                 error: Some(message.clone()),
             },
         );
-        return Err(AriaError::msg(message));
+        return Err(NovaError::msg(message));
     }
 
     let mut stream = response.bytes_stream();
@@ -452,7 +452,7 @@ pub async fn ollama_pull(
                         error: Some(message.clone()),
                     },
                 );
-                return Err(AriaError::msg(message));
+                return Err(NovaError::msg(message));
             }
         };
 
@@ -480,7 +480,7 @@ pub async fn ollama_pull(
                         error: Some(format!("The model could not be downloaded: {err}")),
                     },
                 );
-                return Err(AriaError::msg(err.to_string()));
+                return Err(NovaError::msg(err.to_string()));
             }
 
             let status = parsed
@@ -535,7 +535,7 @@ pub async fn ollama_pull(
 /// Load a model into memory before the user needs it.
 ///
 /// Ollama unloads models after a few minutes idle, and the first request after
-/// that pays several seconds of load time attributed to "ARIA being slow".
+/// that pays several seconds of load time attributed to "NOVA being slow".
 /// An empty generation at launch moves that cost to a moment nobody is
 /// waiting.
 #[tauri::command]

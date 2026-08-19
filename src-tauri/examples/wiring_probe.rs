@@ -4,7 +4,7 @@
 //! These are the commands behind buttons a person clicks, so they are checked
 //! against the real filesystem and the real network rather than mocked.
 
-use aria_lib::commands::{llm, training};
+use nova_lib::commands::{llm, training};
 
 #[tokio::main]
 async fn main() {

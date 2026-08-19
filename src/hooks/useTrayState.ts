@@ -1,5 +1,5 @@
 /**
- * Mirror what ARIA is doing onto the tray icon.
+ * Mirror what NOVA is doing onto the tray icon.
  *
  * When the window is hidden the tray is the only thing the user can see, so it
  * carries the same state the orb does. The wake word matters most: "the

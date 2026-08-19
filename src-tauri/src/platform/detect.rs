@@ -57,7 +57,7 @@ pub struct PlatformInfo {
     pub compositor: Compositor,
     pub distro: Option<String>,
     pub package_manager: PackageManager,
-    /// Presence of each external helper binary ARIA may shell out to.
+    /// Presence of each external helper binary NOVA may shell out to.
     pub tools: HashMap<String, bool>,
     pub is_mobile: bool,
     pub is_desktop: bool,
@@ -156,7 +156,7 @@ pub fn detect() -> PlatformInfo {
     }
 }
 
-/// Re-probe the things that can change while ARIA is running.
+/// Re-probe the things that can change while NOVA is running.
 ///
 /// The session type and compositor are fixed for the life of the process, but
 /// PATH contents are not: a package installed from the setup wizard has to be
@@ -399,7 +399,7 @@ pub struct DependencyCheck {
 
 /// Which helpers matter for *this* machine, given its OS/session/compositor.
 ///
-/// The list is deliberately narrow: anything ARIA can do through a portal or
+/// The list is deliberately narrow: anything NOVA can do through a portal or
 /// a host API is not listed, because listing it would ask the user to install
 /// something that would not be used. In particular nothing here asks a GNOME
 /// session for `grim` — GNOME cannot use it, and screen capture there goes

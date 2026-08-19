@@ -6,7 +6,7 @@
 //! and the setup wizard fetch them into the app data directory on demand, and
 //! everything here resolves them at runtime.
 
-use crate::util::{expand_path, first_available, run_owned, run_with_stdin, JResult, AriaError};
+use crate::util::{expand_path, first_available, run_owned, run_with_stdin, JResult, NovaError};
 use base64::Engine;
 use serde::Serialize;
 
@@ -18,21 +18,21 @@ use serde::Serialize;
 pub fn models_dir() -> std::path::PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| expand_path("~/.local/share"))
-        .join("aria")
+        .join("nova")
         .join("models")
 }
 
 /// Where whisper models live now: alongside the LLM weights, under the data
 /// directory that already honours an existing `~/.jarvis`.
 ///
-/// Deliberately not a fixed `~/.aria/models` path — `data_subdir` prefers a
+/// Deliberately not a fixed `~/.nova/models` path — `data_subdir` prefers a
 /// `~/.jarvis` that already exists, and hardcoding the new name would strand
 /// the gigabyte of models sitting there.
 pub fn whisper_dir() -> JResult<std::path::PathBuf> {
     crate::util::data_subdir("models/whisper")
 }
 
-/// The model files ARIA knows how to use, smallest first.
+/// The model files NOVA knows how to use, smallest first.
 ///
 /// `base.en` is the download offered in the UI: `tiny.en` is noticeably worse
 /// at proper nouns and command words, which is most of what gets dictated
@@ -65,7 +65,7 @@ fn bin_dir() -> std::path::PathBuf {
     models_dir().parent().unwrap().join("bin")
 }
 
-/// Find a sidecar: prefer the copy ARIA downloaded, then fall back to PATH.
+/// Find a sidecar: prefer the copy NOVA downloaded, then fall back to PATH.
 fn find_sidecar(names: &[&str]) -> Option<String> {
     for n in names {
         let local = bin_dir().join(n);
@@ -148,7 +148,7 @@ pub struct SttStatus {
     pub detail: String,
 }
 
-/// What ARIA would use to transcribe right now, and why.
+/// What NOVA would use to transcribe right now, and why.
 #[tauri::command]
 pub async fn stt_status() -> JResult<SttStatus> {
     let binary = find_sidecar(&WHISPER_BINARIES);
@@ -231,14 +231,14 @@ pub async fn transcribe(audio_base64: String) -> JResult<String> {
         .unwrap_or(&audio_base64);
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(payload)
-        .map_err(|e| AriaError::msg(format!("invalid audio payload: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("invalid audio payload: {e}")))?;
 
     match (find_sidecar(&WHISPER_BINARIES), find_whisper_model()) {
         (Some(binary), Some(model)) => transcribe_offline(&binary, &model, &bytes).await,
         _ => {
             let key = super::keys::key_for("openai");
             if key.is_empty() {
-                return Err(AriaError::msg(
+                return Err(NovaError::msg(
                     "No speech-to-text is available. Open Settings → Voice to build the \
                      offline whisper.cpp sidecar and download a model, or add an OpenAI \
                      key in Settings → Keys to use hosted Whisper.",
@@ -256,7 +256,7 @@ pub async fn transcribe(audio_base64: String) -> JResult<String> {
 /// into a build whose dependency set is deliberately audited, and the format
 /// is four fixed fields.
 async fn transcribe_openai(key: &str, wav: &[u8]) -> JResult<String> {
-    const BOUNDARY: &str = "----ariaform7f3d9c2b1a084e6f";
+    const BOUNDARY: &str = "----novaform7f3d9c2b1a084e6f";
 
     let mut body: Vec<u8> = Vec::with_capacity(wav.len() + 512);
     let mut field = |name: &str, value: &str| {
@@ -282,7 +282,7 @@ async fn transcribe_openai(key: &str, wav: &[u8]) -> JResult<String> {
     let response = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()
-        .map_err(|e| AriaError::msg(e.to_string()))?
+        .map_err(|e| NovaError::msg(e.to_string()))?
         .post("https://api.openai.com/v1/audio/transcriptions")
         .bearer_auth(super::llm::clean_key(key))
         .header(
@@ -293,13 +293,13 @@ async fn transcribe_openai(key: &str, wav: &[u8]) -> JResult<String> {
         .send()
         .await
         .map_err(|_| {
-            AriaError::msg("Could not reach OpenAI to transcribe. Check your connection.")
+            NovaError::msg("Could not reach OpenAI to transcribe. Check your connection.")
         })?;
 
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(AriaError::msg(super::llm::describe_status(
+        return Err(NovaError::msg(super::llm::describe_status(
             "openai",
             status.as_u16(),
             &body,
@@ -314,7 +314,7 @@ async fn transcribe_offline(
     model: &std::path::Path,
     bytes: &[u8],
 ) -> JResult<String> {
-    let wav = std::env::temp_dir().join(format!("aria-stt-{}.wav", std::process::id()));
+    let wav = std::env::temp_dir().join(format!("nova-stt-{}.wav", std::process::id()));
     std::fs::write(&wav, bytes)?;
 
     let args: Vec<String> = vec![
@@ -333,7 +333,7 @@ async fn transcribe_offline(
     let out = out?;
 
     if !out.ok() {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "transcription failed: {}",
             out.stderr.trim()
         )));
@@ -374,7 +374,7 @@ fn emit_whisper(app: &tauri::AppHandle, progress: WhisperProgress) {
     let _ = app.emit("whisper-progress", progress);
 }
 
-/// The model ARIA offers to download.
+/// The model NOVA offers to download.
 ///
 /// `base.en` at ~148 MB is the smallest model that reliably gets command words
 /// and proper nouns right; `tiny.en` saves 70 MB and misses enough of them to
@@ -411,16 +411,16 @@ pub async fn download_whisper_model(app: tauri::AppHandle) -> JResult<String> {
     let response = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(1_800))
         .build()
-        .map_err(|e| AriaError::msg(e.to_string()))?
+        .map_err(|e| NovaError::msg(e.to_string()))?
         .get(WHISPER_MODEL_URL)
         .send()
         .await
         .map_err(|_| {
-            AriaError::msg("Could not reach huggingface.co. Check your connection.")
+            NovaError::msg("Could not reach huggingface.co. Check your connection.")
         })?;
 
     if !response.status().is_success() {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "The model download failed with HTTP {}.",
             response.status().as_u16()
         )));
@@ -438,7 +438,7 @@ pub async fn download_whisper_model(app: tauri::AppHandle) -> JResult<String> {
 
     while let Some(chunk) = stream.next().await {
         let bytes =
-            chunk.map_err(|_| AriaError::msg("The model download was interrupted."))?;
+            chunk.map_err(|_| NovaError::msg("The model download was interrupted."))?;
         file.write_all(&bytes)?;
         downloaded += bytes.len() as u64;
 
@@ -495,7 +495,7 @@ pub async fn build_whisper_sidecar(app: tauri::AppHandle) -> JResult<String> {
         return Ok(existing);
     }
     if first_available(&["git"]).is_none() || first_available(&["cmake"]).is_none() {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "Building the offline engine needs git and cmake. Install them, or add an \
              OpenAI key in Settings → Keys to use hosted Whisper instead.",
         ));
@@ -503,7 +503,7 @@ pub async fn build_whisper_sidecar(app: tauri::AppHandle) -> JResult<String> {
 
     let bin = bin_dir();
     std::fs::create_dir_all(&bin)?;
-    let build = std::env::temp_dir().join("aria-whisper-build");
+    let build = std::env::temp_dir().join("nova-whisper-build");
     let _ = std::fs::remove_dir_all(&build);
 
     let steps: [(&str, Vec<String>, &str); 3] = [
@@ -561,7 +561,7 @@ pub async fn build_whisper_sidecar(app: tauri::AppHandle) -> JResult<String> {
         let out = run_owned(program, args).await?;
         if !out.ok() {
             let _ = std::fs::remove_dir_all(&build);
-            return Err(AriaError::msg(format!(
+            return Err(NovaError::msg(format!(
                 "{detail} failed: {}",
                 out.stderr.trim().lines().last().unwrap_or("unknown error")
             )));
@@ -574,7 +574,7 @@ pub async fn build_whisper_sidecar(app: tauri::AppHandle) -> JResult<String> {
         .iter()
         .map(|c| build.join(c))
         .find(|p| p.is_file())
-        .ok_or_else(|| AriaError::msg("The build finished but produced no whisper binary."))?;
+        .ok_or_else(|| NovaError::msg("The build finished but produced no whisper binary."))?;
 
     let installed = bin.join("whisper-cli");
     std::fs::copy(&built, &installed)?;
@@ -607,7 +607,7 @@ pub async fn build_whisper_sidecar(app: tauri::AppHandle) -> JResult<String> {
 #[tauri::command]
 pub async fn synthesize(text: String, speed: Option<f32>) -> JResult<String> {
     if text.trim().is_empty() {
-        return Err(AriaError::msg("nothing to speak"));
+        return Err(NovaError::msg("nothing to speak"));
     }
 
     let out_path = std::env::temp_dir().join(format!(
@@ -637,7 +637,7 @@ pub async fn synthesize(text: String, speed: Option<f32>) -> JResult<String> {
             ];
             let out = run_with_stdin(&piper, &args, &text).await?;
             if !out.ok() && !out_path.exists() {
-                return Err(AriaError::msg(format!(
+                return Err(NovaError::msg(format!(
                     "piper failed: {}",
                     out.stderr.trim()
                 )));
@@ -648,7 +648,7 @@ pub async fn synthesize(text: String, speed: Option<f32>) -> JResult<String> {
     };
 
     if !produced || !out_path.exists() {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "No speech engine is available. Install piper (`bash scripts/download-models.sh`) \
              or espeak-ng, or switch TTS to the browser engine in Settings → Voice.",
         ));
@@ -728,7 +728,7 @@ async fn native_tts(text: &str, out_path: &str, speed: f32) -> JResult<bool> {
 #[tauri::command]
 pub async fn speak_native(text: String) -> JResult<()> {
     let bin = native_tts_binary().ok_or_else(|| {
-        AriaError::missing("espeak-ng", "No system speech engine is installed.")
+        NovaError::missing("espeak-ng", "No system speech engine is installed.")
     })?;
 
     let args: Vec<String> = if cfg!(target_os = "windows") {

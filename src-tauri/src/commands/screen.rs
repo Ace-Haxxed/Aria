@@ -2,7 +2,7 @@
 //! the vision model can consume without another round trip.
 
 use crate::platform::{self, Region};
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use base64::Engine;
 use std::path::PathBuf;
 
@@ -14,7 +14,7 @@ pub fn temp_capture_path() -> PathBuf {
         .map(|d| d.subsec_nanos())
         .unwrap_or(0);
     std::env::temp_dir().join(format!(
-        "aria-capture-{}-{}.png",
+        "nova-capture-{}-{}.png",
         std::process::id(),
         nanos
     ))
@@ -24,7 +24,7 @@ pub fn temp_capture_path() -> PathBuf {
 /// the region itself (gnome-screenshot, spectacle).
 pub fn crop_png(bytes: &[u8], r: Region) -> JResult<Vec<u8>> {
     let img = image::load_from_memory(bytes)
-        .map_err(|e| AriaError::msg(format!("could not decode screenshot: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not decode screenshot: {e}")))?;
 
     let (iw, ih) = (img.width() as i32, img.height() as i32);
     // Clamp to the image so an out-of-range region degrades instead of failing.
@@ -37,7 +37,7 @@ pub fn crop_png(bytes: &[u8], r: Region) -> JResult<Vec<u8>> {
     let mut out = std::io::Cursor::new(Vec::new());
     cropped
         .write_to(&mut out, image::ImageFormat::Png)
-        .map_err(|e| AriaError::msg(format!("could not encode screenshot: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not encode screenshot: {e}")))?;
     Ok(out.into_inner())
 }
 
@@ -52,7 +52,7 @@ pub fn to_data_url(bytes: &[u8]) -> String {
 /// 1568px is the point beyond which the major vision models resample anyway.
 fn downscale(bytes: &[u8], max_edge: u32) -> JResult<Vec<u8>> {
     let img = image::load_from_memory(bytes)
-        .map_err(|e| AriaError::msg(format!("could not decode screenshot: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not decode screenshot: {e}")))?;
     if img.width() <= max_edge && img.height() <= max_edge {
         return Ok(bytes.to_vec());
     }
@@ -60,7 +60,7 @@ fn downscale(bytes: &[u8], max_edge: u32) -> JResult<Vec<u8>> {
     let mut out = std::io::Cursor::new(Vec::new());
     resized
         .write_to(&mut out, image::ImageFormat::Png)
-        .map_err(|e| AriaError::msg(format!("could not encode screenshot: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not encode screenshot: {e}")))?;
     Ok(out.into_inner())
 }
 
@@ -158,7 +158,7 @@ fn best_match(tsv: &str, needle: &str) -> Option<(f32, i32, i32, String)> {
 pub async fn find_on_screen(description: String) -> JResult<Found> {
     let bytes = platform::screenshot(None).await?;
     let img = image::load_from_memory(&bytes)
-        .map_err(|e| AriaError::msg(format!("could not decode screenshot: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not decode screenshot: {e}")))?;
     let centre = Found {
         found: false,
         x: img.width() as i32 / 2,
@@ -169,7 +169,7 @@ pub async fn find_on_screen(description: String) -> JResult<Found> {
     if !crate::util::has("tesseract") {
         return Ok(Found {
             detail: "Locating things by description needs `tesseract` installed; \
-                     ask ARIA to look at the screen instead."
+                     ask NOVA to look at the screen instead."
                 .into(),
             ..centre
         });
@@ -233,7 +233,7 @@ pub struct ScreenSize {
 pub async fn get_screen_size() -> JResult<ScreenSize> {
     let bytes = platform::screenshot(None).await?;
     let img = image::load_from_memory(&bytes)
-        .map_err(|e| AriaError::msg(format!("could not decode screenshot: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not decode screenshot: {e}")))?;
     Ok(ScreenSize {
         width: img.width(),
         height: img.height(),

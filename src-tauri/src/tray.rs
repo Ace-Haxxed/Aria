@@ -1,7 +1,7 @@
-//! The tray icon, and what it says about what ARIA is doing.
+//! The tray icon, and what it says about what NOVA is doing.
 //!
 //! When the window is hidden the tray is the only thing the user can see, so
-//! it carries the same state the orb does: whether ARIA is listening, busy,
+//! it carries the same state the orb does: whether NOVA is listening, busy,
 //! or waiting. Listening pulses, because "the microphone is open" is the one
 //! state a user is entitled to notice without looking for it.
 //!
@@ -63,11 +63,11 @@ impl TrayState {
 
     fn tooltip(self) -> &'static str {
         match self {
-            TrayState::Idle => "ARIA",
-            TrayState::Listening => "ARIA — listening for the wake word",
-            TrayState::Thinking => "ARIA — thinking",
-            TrayState::Speaking => "ARIA — speaking",
-            TrayState::Acting => "ARIA — working",
+            TrayState::Idle => "NOVA",
+            TrayState::Listening => "NOVA — listening for the wake word",
+            TrayState::Thinking => "NOVA — thinking",
+            TrayState::Speaking => "NOVA — speaking",
+            TrayState::Acting => "NOVA — working",
         }
     }
 }
@@ -81,7 +81,7 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 fn apply(app: &AppHandle, bytes: &[u8], tooltip: Option<&str>) {
-    let Some(tray) = app.tray_by_id("aria-tray") else {
+    let Some(tray) = app.tray_by_id("nova-tray") else {
         return;
     };
     if let Ok(image) = Image::from_bytes(bytes) {
@@ -116,16 +116,16 @@ pub fn set_state(app: &AppHandle, state: TrayState) {
 /// tray whose widget is not realised prints
 /// `gtk_widget_get_scale_factor: assertion 'GTK_IS_WIDGET (widget)' failed`.
 /// One warning per state change is tolerable; a pulse emits one every few
-/// hundred milliseconds for as long as ARIA is busy, which floods the terminal
-/// of anyone who launched it with `aria` and buries real output.
+/// hundred milliseconds for as long as NOVA is busy, which floods the terminal
+/// of anyone who launched it with `nova` and buries real output.
 ///
 /// The per-state icon still updates — only the animation is dropped — so the
-/// tray remains informative. Set `ARIA_TRAY_PULSE=1` to force it back on.
+/// tray remains informative. Set `NOVA_TRAY_PULSE=1` to force it back on.
 fn pulse_supported() -> bool {
     if cfg!(not(target_os = "linux")) {
         return true;
     }
-    std::env::var_os("ARIA_TRAY_PULSE").is_some()
+    std::env::var_os("NOVA_TRAY_PULSE").is_some()
 }
 
 /// Alternate frames for as long as the current state animates.
@@ -142,7 +142,7 @@ fn start_pulse(app: AppHandle) {
     }
 
     std::thread::Builder::new()
-        .name("aria-tray-pulse".into())
+        .name("nova-tray-pulse".into())
         .spawn(move || {
             let mut bright = true;
             loop {
@@ -189,7 +189,7 @@ mod tests {
     /// unless explicitly asked for, and stay on everywhere else.
     #[test]
     fn the_pulse_is_off_by_default_on_linux_only() {
-        let forced = std::env::var_os("ARIA_TRAY_PULSE").is_some();
+        let forced = std::env::var_os("NOVA_TRAY_PULSE").is_some();
         if cfg!(target_os = "linux") {
             assert_eq!(pulse_supported(), forced);
         } else {
@@ -211,7 +211,7 @@ mod tests {
         for state in states {
             let (full, _) = state.frames();
             assert!(!full.is_empty(), "{state:?} has no icon");
-            assert!(state.tooltip().contains("ARIA"), "{state:?} tooltip");
+            assert!(state.tooltip().contains("NOVA"), "{state:?} tooltip");
         }
     }
     use super::*;
@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn every_state_names_itself_in_the_tooltip() {
         for state in [TrayState::Idle, TrayState::Listening, TrayState::Speaking] {
-            assert!(state.tooltip().contains("ARIA"), "{state:?}");
+            assert!(state.tooltip().contains("NOVA"), "{state:?}");
         }
     }
 }

@@ -42,7 +42,7 @@ interface SettingsPanelProps {
   onClose?: () => void;
   /** Rendered inline on mobile rather than as a modal. */
   embedded?: boolean;
-  /** Which tab to open on. `aria --keys` uses this to land on the keys page. */
+  /** Which tab to open on. `nova --keys` uses this to land on the keys page. */
   initialTab?: string;
 }
 
@@ -103,7 +103,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
 
   const testSpeaker = async () => {
     const { useVoiceTest } = await import('./testSpeaker');
-    await useVoiceTest('ARIA speech test. All systems nominal.');
+    await useVoiceTest('NOVA speech test. All systems nominal.');
   };
 
   const modelOptions =
@@ -116,7 +116,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `aria-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `nova-settings-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   };
@@ -131,7 +131,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
         update(parsed);
         toast.success('Settings imported');
       })
-      .catch(() => toast.error('That file is not a ARIA settings export'));
+      .catch(() => toast.error('That file is not a NOVA settings export'));
   };
 
   const body = (
@@ -180,14 +180,14 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
         <TabsTrigger value="privacy">Privacy</TabsTrigger>
       </TabsList>
 
-      <div className="aria-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+      <div className="nova-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         {/* ── General ── */}
         <TabsContent value="general" className="space-y-5">
           {isDesktop && (
             <>
               <Row
                 label="Launch at startup"
-                description="Start ARIA when you log in"
+                description="Start NOVA when you log in"
                 control={
                   <Switch
                     checked={settings.launchAtStartup}
@@ -212,7 +212,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
             <>
               <Row
                 label="Raise the window on wake word"
-                description="Bring ARIA to the front when it hears you"
+                description="Bring NOVA to the front when it hears you"
                 control={
                   <Switch
                     checked={settings.raiseOnWakeWord}
@@ -221,8 +221,8 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
                 }
               />
               <Row
-                label={'"Goodbye ARIA" hides the window'}
-                description="Say it, or press Escape, to send ARIA back to the tray"
+                label={'"Goodbye NOVA" hides the window'}
+                description="Say it, or press Escape, to send NOVA back to the tray"
                 control={
                   <Switch
                     checked={settings.goodbyeMinimizes}
@@ -236,7 +236,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
           <div className="space-y-2">
             <Label>Accent colour</Label>
             <p className="text-xs text-muted-foreground">
-              ARIA is dark-theme only. This shifts the accent hue everything derives from.
+              NOVA is dark-theme only. This shifts the accent hue everything derives from.
             </p>
             <div className="flex items-center gap-3">
               <Slider
@@ -418,7 +418,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
               <span
                 className={cn(
                   'text-xs',
-                  testResult.ok ? 'text-aria-acting' : 'text-risk-high',
+                  testResult.ok ? 'text-nova-acting' : 'text-risk-high',
                 )}
               >
                 {testResult.message}
@@ -585,10 +585,10 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
         {isDesktop && (
           <TabsContent value="hotkeys" className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Click a shortcut and press the keys you want. These work even when ARIA is not
+              Click a shortcut and press the keys you want. These work even when NOVA is not
               focused.
             </p>
-            <HotkeyRecorder action="toggleWindow" label="Show or hide ARIA" />
+            <HotkeyRecorder action="toggleWindow" label="Show or hide NOVA" />
             <HotkeyRecorder action="pushToTalk" label="Push to talk" />
             <HotkeyRecorder action="screenshotAsk" label="Screenshot and ask" />
             <div className="flex items-center justify-between py-2">
@@ -608,7 +608,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
         {/* ── Permissions ── */}
         <TabsContent value="permissions" className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            ARIA runs every action the model decides on, straight away — there is no
+            NOVA runs every action the model decides on, straight away — there is no
             confirmation step and no per-capability switch. Everything it does is recorded
             in the action log, and anything reversible can be undone from there.
           </p>
@@ -642,7 +642,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
 
           <Row
             label="Remember things between sessions"
-            description="Let ARIA keep notes on your preferences"
+            description="Let NOVA keep notes on your preferences"
             control={
               <Switch
                 checked={settings.persistentMemory}
@@ -671,7 +671,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
           <Card className="space-y-2 p-3.5">
             <div className="text-sm font-medium">No analytics</div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              ARIA collects nothing and phones home to nothing. The only network traffic is
+              NOVA collects nothing and phones home to nothing. The only network traffic is
               to the AI backend you chose and to pages you ask it to read. Pick Ollama and
               nothing leaves this device at all.
             </p>
@@ -699,7 +699,7 @@ export function SettingsPanel({ onClose, embedded, initialTab = 'general' }: Set
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
-      <div className="aria-panel flex h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl">
+      <div className="nova-panel flex h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3.5">
           <h2 className="text-sm font-semibold">Settings</h2>
           <Button size="icon-sm" variant="ghost" onClick={onClose} aria-label="Close settings">

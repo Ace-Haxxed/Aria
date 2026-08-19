@@ -34,7 +34,7 @@ function MessageComponent({ message, streamingText }: MessageProps) {
         className="flex items-start gap-2 px-1 text-xs text-muted-foreground"
       >
         <Wrench
-          className={cn('mt-0.5 h-3 w-3 shrink-0', failed ? 'text-risk-high' : 'text-aria-acting')}
+          className={cn('mt-0.5 h-3 w-3 shrink-0', failed ? 'text-risk-high' : 'text-nova-acting')}
         />
         <span className={cn('line-clamp-3 font-mono', failed && 'text-risk-high/90')}>
           {message.content}
@@ -54,30 +54,30 @@ function MessageComponent({ message, streamingText }: MessageProps) {
     >
       {!isUser && (
         <div
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+          className="nova-hex mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center"
           style={{
             background:
-              'linear-gradient(140deg, hsl(var(--accent-h) var(--accent-s) 62%), hsl(var(--accent-h) var(--accent-s) 38%))',
+              'linear-gradient(140deg, hsl(var(--accent-h) var(--accent-s) 72%), hsl(var(--accent-h) var(--accent-s) 46%))',
           }}
         >
-          <span className="text-[12px] font-semibold text-white">A</span>
+          <span className="text-[11px] font-semibold text-white">N</span>
         </div>
       )}
 
-      <div className={cn('space-y-2', isUser ? 'max-w-[70%] items-end' : 'max-w-[80%]')}>
+      <div className={cn('space-y-2', isUser ? 'max-w-[65%] items-end' : 'max-w-[78%]')}>
         <div
           className={cn(
             'text-sm leading-relaxed',
-            // Only the user's turn is a bubble. ARIA's reply is the content of
+            // Only the user's turn is a bubble. NOVA's reply is the content of
             // the page, and a card around it competes with what it contains.
-            isUser && 'px-4 py-3 backdrop-blur-md',
+            isUser && 'px-[14px] py-[10px] backdrop-blur-md',
             message.error && 'rounded-2xl border border-risk-high/50 bg-risk-high/10 px-4 py-3',
           )}
           style={
             isUser && !message.error
               ? {
-                  background: 'hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.08)',
-                  border: '1px solid hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.15)',
+                  background: 'hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.06)',
+                  border: '1px solid hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12)',
                   borderRadius: '16px 16px 4px 16px',
                 }
               : undefined
@@ -118,8 +118,8 @@ function MessageComponent({ message, streamingText }: MessageProps) {
             {message.toolCalls.map((call) => (
               <span
                 key={call.id}
-                className="inline-flex items-center gap-1 rounded-full border border-aria-acting/40
-                  bg-aria-acting/10 px-2 py-0.5 font-mono text-[10px] text-aria-acting"
+                className="inline-flex items-center gap-1 rounded-full border border-nova-acting/40
+                  bg-nova-acting/10 px-2 py-0.5 font-mono text-[10px] text-nova-acting"
               >
                 <Terminal className="h-2.5 w-2.5" />
                 {call.name}
@@ -194,7 +194,7 @@ function MessageActions({ message }: { message: MessageType }) {
         aria-label="Copy reply"
         className="rounded p-1 transition-all hover:text-foreground active:scale-90"
       >
-        {copied ? <Check className="h-3 w-3 text-aria-acting" /> : <Copy className="h-3 w-3" />}
+        {copied ? <Check className="h-3 w-3 text-nova-acting" /> : <Copy className="h-3 w-3" />}
       </button>
 
       <button
@@ -203,7 +203,7 @@ function MessageActions({ message }: { message: MessageType }) {
         aria-pressed={rated === 1}
         className={cn(
           'rounded p-1 transition-all hover:text-foreground active:scale-90',
-          rated === 1 && 'text-aria-acting',
+          rated === 1 && 'text-nova-acting',
         )}
       >
         <ThumbsUp className="h-3 w-3" />

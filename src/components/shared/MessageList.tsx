@@ -122,7 +122,7 @@ export function ThinkingSkeleton() {
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="aria-thinking-dot h-1.5 w-1.5 rounded-full bg-primary"
+            className="nova-thinking-dot h-1.5 w-1.5 rounded-full bg-primary"
             style={{ animationDelay: `${i * 160}ms` }}
           />
         ))}

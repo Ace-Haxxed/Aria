@@ -7,7 +7,7 @@ enum Invocation {
     Gui,
     /// Launch, and open straight to the API key settings.
     Keys,
-    /// Clear `~/.config/aria/` first, then launch.
+    /// Clear `~/.config/nova/` first, then launch.
     Reset,
     /// Launch and drive a scripted set of real prompts through the agent.
     Demo,
@@ -18,16 +18,16 @@ enum Invocation {
 fn parse_args(args: &[String]) -> Invocation {
     match args.iter().map(String::as_str).find(|a| a.starts_with('-')) {
         Some("--version" | "-V" | "-v") => {
-            Invocation::Print(format!("aria {}", env!("CARGO_PKG_VERSION")))
+            Invocation::Print(format!("nova {}", env!("CARGO_PKG_VERSION")))
         }
         Some("--help" | "-h") => Invocation::Print(
-            "ARIA — Adaptive Reasoning and Intelligence Assistant\n\n\
-             Usage: aria [options]\n\n\
+            "NOVA — Neural Operative Virtual Assistant\n\n\
+             Usage: nova [options]\n\n\
              Options:\n  \
-               (none)       launch ARIA\n  \
+               (none)       launch NOVA\n  \
                --keys       open directly to the API key settings\n  \
                --demo       launch and run a scripted demo through the real agent\n  \
-               --reset      clear ~/.config/aria/ and relaunch\n  \
+               --reset      clear ~/.config/nova/ and relaunch\n  \
                --version    print the version and exit\n  \
                --help       show this message"
                 .into(),
@@ -36,7 +36,7 @@ fn parse_args(args: &[String]) -> Invocation {
         Some("--demo") => Invocation::Demo,
         Some("--reset") => Invocation::Reset,
         Some(other) => {
-            Invocation::Print(format!("aria: unknown option `{other}`\nTry `aria --help`."))
+            Invocation::Print(format!("nova: unknown option `{other}`\nTry `nova --help`."))
         }
         None => Invocation::Gui,
     }
@@ -55,7 +55,7 @@ fn main() {
             // data live elsewhere and are not what "reset my settings" means —
             // deleting a downloaded multi-gigabyte model here would be a
             // nasty surprise.
-            match aria_lib::commands::keys::config_dir() {
+            match nova_lib::commands::keys::config_dir() {
                 Ok(dir) => match std::fs::remove_dir_all(&dir) {
                     Ok(()) => println!("Cleared {}.", dir.display()),
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -68,17 +68,17 @@ fn main() {
         }
         // The window reads these on start-up. Both are read once, by the
         // process the flag was passed to, so they cannot leak into a later run.
-        Invocation::Keys => std::env::set_var("ARIA_OPEN_KEYS", "1"),
-        Invocation::Demo => std::env::set_var("ARIA_DEMO", "1"),
+        Invocation::Keys => std::env::set_var("NOVA_OPEN_KEYS", "1"),
+        Invocation::Demo => std::env::set_var("NOVA_DEMO", "1"),
         Invocation::Gui => {}
     }
 
     // Before anything else: GTK and WebKitGTK read their environment once, at
     // initialisation, and Tauri initialises them inside `run()`. Setting these
     // any later has no effect.
-    aria_lib::platform::env::prepare();
+    nova_lib::platform::env::prepare();
 
-    aria_lib::run()
+    nova_lib::run()
 }
 
 #[cfg(test)]
@@ -99,7 +99,7 @@ mod tests {
         let Invocation::Print(text) = parse(&["--version"]) else {
             panic!("--version should print");
         };
-        assert!(text.starts_with("aria "));
+        assert!(text.starts_with("nova "));
         assert!(text.contains(env!("CARGO_PKG_VERSION")));
     }
 

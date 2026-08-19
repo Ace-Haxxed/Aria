@@ -46,7 +46,7 @@ export function useAgent(
       } catch (e) {
         toast.error(
           'Some tools are unavailable',
-          humanise(e) + ' ARIA can still talk, but may not be able to act.',
+          humanise(e) + ' NOVA can still talk, but may not be able to act.',
         );
       } finally {
         if (!cancelled) setReady(true);
@@ -103,7 +103,7 @@ export function useAgent(
         toast.error('No AI backend available', humanise(e), {
           label: 'Open settings',
           run: () => {
-            window.dispatchEvent(new CustomEvent('aria:open-settings'));
+            window.dispatchEvent(new CustomEvent('nova:open-settings'));
           },
         });
         return;
@@ -243,7 +243,7 @@ export function useAgent(
         // explanation, so it has to surface as a toast or the user simply
         // watches the orb go idle with no reply and no reason.
         conv.setAgentState('idle');
-        toast.error('ARIA could not finish that', humanise(e), {
+        toast.error('NOVA could not finish that', humanise(e), {
           label: 'Try again',
           run: () => void send(text, images),
         });

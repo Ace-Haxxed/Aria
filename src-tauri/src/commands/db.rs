@@ -1,19 +1,19 @@
 //! Conversation, memory and action-log persistence (SQLite via sqlx).
 
 use crate::state::AppState;
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use serde::{Deserialize, Serialize};
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use tauri::State;
 
-fn db_err(e: sqlx::Error) -> AriaError {
-    AriaError::msg(format!("database error: {e}"))
+fn db_err(e: sqlx::Error) -> NovaError {
+    NovaError::msg(format!("database error: {e}"))
 }
 
 /// Open (creating if needed) the database under the app's data directory.
 pub async fn init(app_dir: &std::path::Path) -> anyhow::Result<SqlitePool> {
     std::fs::create_dir_all(app_dir)?;
-    let path = app_dir.join("aria.db");
+    let path = app_dir.join("nova.db");
 
     // `mode=rwc` creates the file; without it sqlx errors on first run.
     let url = format!("sqlite:{}?mode=rwc", path.to_string_lossy());
@@ -67,7 +67,7 @@ pub async fn init(app_dir: &std::path::Path) -> anyhow::Result<SqlitePool> {
     .execute(&pool)
     .await?;
 
-    // Long-term facts ARIA remembers across sessions.
+    // Long-term facts NOVA remembers across sessions.
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS memories (
@@ -420,5 +420,5 @@ pub async fn export_action_log(state: State<'_, AppState>) -> JResult<String> {
         .collect();
 
     serde_json::to_string_pretty(&entries)
-        .map_err(|e| AriaError::msg(format!("could not serialise the action log: {e}")))
+        .map_err(|e| NovaError::msg(format!("could not serialise the action log: {e}")))
 }

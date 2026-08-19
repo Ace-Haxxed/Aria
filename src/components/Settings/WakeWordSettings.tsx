@@ -68,7 +68,7 @@ export function WakeWordSettings() {
         <div className="min-w-0">
           <div className="text-sm font-medium">Wake word</div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Listen for a trigger phrase, even when ARIA is in the tray. Runs entirely on this
+            Listen for a trigger phrase, even when NOVA is in the tray. Runs entirely on this
             machine.
           </p>
         </div>
@@ -94,7 +94,7 @@ export function WakeWordSettings() {
                   id="wakeword"
                   value={voice.wakeWord}
                   onChange={(e) => updateVoice({ wakeWord: e.target.value })}
-                  placeholder="aria"
+                  placeholder="nova"
                 />
                 <p className="text-xs text-muted-foreground">
                   Short and distinctive works best. A phrase that sounds like a common word will
@@ -107,13 +107,13 @@ export function WakeWordSettings() {
               <div
                 className={cn(
                   'space-y-2 rounded-xl border p-3',
-                  trained ? 'border-aria-acting/40 bg-aria-acting/5' : 'border-risk-medium/40 bg-risk-medium/5',
+                  trained ? 'border-nova-acting/40 bg-nova-acting/5' : 'border-risk-medium/40 bg-risk-medium/5',
                 )}
               >
                 <div className="flex items-center gap-2 text-sm">
                   {trained ? (
                     <>
-                      <Check className="h-4 w-4 shrink-0 text-aria-acting" />
+                      <Check className="h-4 w-4 shrink-0 text-nova-acting" />
                       <span>
                         Ready — {status?.templates} recording{status?.templates === 1 ? '' : 's'} of
                         your voice
@@ -122,7 +122,7 @@ export function WakeWordSettings() {
                   ) : (
                     <>
                       <AlertCircle className="h-4 w-4 shrink-0 text-risk-medium" />
-                      <span>ARIA needs to hear you say it once</span>
+                      <span>NOVA needs to hear you say it once</span>
                     </>
                   )}
                 </div>

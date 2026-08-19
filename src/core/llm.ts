@@ -33,7 +33,7 @@ export interface ProviderSpec {
 export const PROVIDERS: ProviderSpec[] = [
   {
     id: 'builtin',
-    label: 'Built-in (runs inside ARIA)',
+    label: 'Built-in (runs inside NOVA)',
     needsApiKey: false,
     defaultModel: 'phi-3.5-mini',
     defaultVisionModel: 'phi-3.5-mini',
@@ -345,7 +345,7 @@ async function openStreamWithRetry(
     // time so a struggling provider is not hammered.
     if (
       !response.ok &&
-      response.ariaRetryAfter == null &&
+      response.novaRetryAfter == null &&
       isTransient(response.status) &&
       transientAttempts < MAX_TRANSIENT_ATTEMPTS - 1
     ) {
@@ -356,7 +356,7 @@ async function openStreamWithRetry(
       continue;
     }
 
-    const wait = response.ariaRetryAfter;
+    const wait = response.novaRetryAfter;
     if (wait == null || attempt >= MAX_RATE_LIMIT_RETRIES) return response;
 
     if (wait > MAX_WAIT_SECONDS) {
@@ -380,7 +380,7 @@ async function openStreamWithRetry(
 }
 
 function explainedWait(response: ExplainedResponse, message: string): ExplainedResponse {
-  return Object.assign(response, { ariaError: message });
+  return Object.assign(response, { novaError: message });
 }
 
 /* ── OpenAI-compatible streaming (OpenAI, Groq, custom, on-device) ── */
@@ -579,7 +579,7 @@ async function* streamOllama(
   } catch {
     yield {
       error:
-        'Ollama is not responding on this machine. ARIA can start it for you from ' +
+        'Ollama is not responding on this machine. NOVA can start it for you from ' +
         'Settings → AI, or you can switch to a cloud provider there.',
       done: true,
     };
@@ -805,7 +805,7 @@ async function* streamAnthropic(
 /**
  * Shown only if a tool 400 survives the signature round-trip.
  *
- * Reaching this means Gemini rejected a call ARIA replayed correctly, so the
+ * Reaching this means Gemini rejected a call NOVA replayed correctly, so the
  * useful advice is still to move provider rather than to keep retrying.
  */
 export const GEMINI_TOOLS_UNSUPPORTED =
@@ -1018,7 +1018,7 @@ async function describeHttpError(res: ExplainedResponse, provider: LLMProvider):
   // The Rust transport already knows the provider, the status and the body,
   // and builds a sentence that names the fix. Re-deriving one here would only
   // wrap a good message in a worse one.
-  if (res.ariaError) return res.ariaError;
+  if (res.novaError) return res.novaError;
 
   let detail = '';
   try {

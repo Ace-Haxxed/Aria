@@ -1,6 +1,6 @@
 //! The single source of truth for provider credentials.
 //!
-//! One file, `~/.config/aria/keys.json`, read once at startup and held in
+//! One file, `~/.config/nova/keys.json`, read once at startup and held in
 //! memory for the life of the process. Every later read is a lock and a clone,
 //! so sending the first message never waits on disk or on a keyring daemon.
 //!
@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use std::time::Duration;
 
-use crate::util::{AriaError, JResult};
+use crate::util::{NovaError, JResult};
 
 /// Providers the config always carries, so the settings UI has a stable set of
 /// tabs whether or not a key has ever been saved for one.
@@ -76,7 +76,7 @@ pub fn default_model_for(provider: &str) -> String {
         "openai" => "gpt-4o-mini",
         "anthropic" => "claude-sonnet-4-5",
         "gemini" => "gemini-2.5-flash",
-        // Tool-capable and on NVIDIA's free build tier; ARIA's loop is useless
+        // Tool-capable and on NVIDIA's free build tier; NOVA's loop is useless
         // without function calling, which rules out most of their catalogue.
         "nvidia" => "meta/llama-3.3-70b-instruct",
         "bytez" => "google/gemma-2-9b-it",
@@ -112,18 +112,36 @@ impl KeyConfig {
     }
 }
 
-/// `~/.config/aria/`, honouring `XDG_CONFIG_HOME`.
+/// `~/.config/nova/`, honouring `XDG_CONFIG_HOME`.
 pub fn config_dir() -> JResult<PathBuf> {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
         .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
-        .ok_or_else(|| AriaError::msg("ARIA could not locate your config directory."))?;
-    Ok(base.join("aria"))
+        .ok_or_else(|| NovaError::msg("NOVA could not locate your config directory."))?;
+    Ok(base.join("nova"))
 }
 
 pub fn config_path() -> JResult<PathBuf> {
     Ok(config_dir()?.join("keys.json"))
+}
+
+/// Config directories written by earlier names of this app, newest first.
+///
+/// The rename to NOVA moved the config directory. Everyone upgrading already
+/// has their keys in the old one, and a rename that silently logs the user out
+/// is a rename that looks like a bug — so the old locations are read once and
+/// adopted, rather than left behind.
+fn legacy_config_paths() -> Vec<PathBuf> {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")));
+
+    let Some(base) = base else {
+        return Vec::new();
+    };
+    ["aria", "jarvis"].iter().map(|n| base.join(n).join("keys.json")).collect()
 }
 
 /// The in-memory copy. Written through to disk on every change.
@@ -133,11 +151,28 @@ fn read_from_disk() -> KeyConfig {
     let Ok(path) = config_path() else {
         return KeyConfig::default();
     };
-    let Ok(text) = std::fs::read_to_string(&path) else {
-        return KeyConfig::default();
+
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(_) => {
+            // Nothing under the current name. Adopt the newest config written
+            // by a previous one, and copy it across so this only happens once.
+            let Some(legacy) = legacy_config_paths().into_iter().find(|p| p.exists()) else {
+                return KeyConfig::default();
+            };
+            let Ok(text) = std::fs::read_to_string(&legacy) else {
+                return KeyConfig::default();
+            };
+            if let Ok(parsed) = serde_json::from_str::<KeyConfig>(&text) {
+                let adopted = parsed.fill();
+                let _ = write_to_disk(&adopted);
+                return adopted;
+            }
+            return KeyConfig::default();
+        }
     };
 
-    // A corrupt or hand-edited file must not stop ARIA from starting; the
+    // A corrupt or hand-edited file must not stop NOVA from starting; the
     // defaults let the user re-enter a key rather than face a dead app.
     match serde_json::from_str::<KeyConfig>(&text) {
         Ok(config) => config.fill(),
@@ -189,12 +224,21 @@ pub fn load() -> bool {
 
 /// Read one key out of the old keychain store, ignoring every failure — a
 /// missing keyring daemon is the normal case on a fresh machine.
+///
+/// Every service name this app has ever used is tried. The keychain entries
+/// were written under whichever name was current at the time, so looking only
+/// under the newest one would find nothing on exactly the machines this
+/// migration exists for.
 fn keychain_key(provider: &str) -> Option<String> {
-    keyring::Entry::new("ai.aria.assistant", provider)
-        .ok()?
-        .get_password()
-        .ok()
-        .filter(|k| !k.trim().is_empty())
+    ["ai.nova.assistant", "ai.aria.assistant", "ai.jarvis.assistant"]
+        .into_iter()
+        .find_map(|service| {
+            keyring::Entry::new(service, provider)
+                .ok()?
+                .get_password()
+                .ok()
+                .filter(|k| !k.trim().is_empty())
+        })
 }
 
 fn current() -> KeyConfig {
@@ -212,7 +256,7 @@ fn write_to_disk(config: &KeyConfig) -> JResult<()> {
     let path = config_path()?;
 
     let json = serde_json::to_string_pretty(config)
-        .map_err(|e| AriaError::msg(format!("could not encode the key file: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not encode the key file: {e}")))?;
 
     // Write to a temporary file and rename, so an interrupted write cannot
     // leave a half-written file where the keys used to be.
@@ -345,7 +389,7 @@ pub fn parse_free_models(body: &str) -> Vec<FreeModel> {
             // chat API has none. Filtering on it non-null selects zero models.
             //
             // `supported_parameters` containing `tools` is the signal that
-            // actually matters here: ARIA is an agent, and a model that cannot
+            // actually matters here: NOVA is an agent, and a model that cannot
             // take tool definitions cannot run its loop at all.
             m.get("supported_parameters")
                 .and_then(Value::as_array)
@@ -491,21 +535,21 @@ pub async fn reconcile_openrouter_model() -> JResult<Option<String>> {
 
 /* ── Commands ───────────────────────────────────────────────────── */
 
-/// Whether ARIA was started with `aria --keys`, so the UI can open straight
+/// Whether NOVA was started with `nova --keys`, so the UI can open straight
 /// to the key settings instead of the chat view.
 #[tauri::command]
 pub async fn open_keys_requested() -> JResult<bool> {
-    Ok(std::env::var("ARIA_OPEN_KEYS").is_ok())
+    Ok(std::env::var("NOVA_OPEN_KEYS").is_ok())
 }
 
-/// The scripted demo, or `None` when ARIA was not started with `--demo`.
+/// The scripted demo, or `None` when NOVA was not started with `--demo`.
 ///
 /// The steps live here rather than in the frontend so `--demo` is a property
 /// of how the binary was invoked: the window asks once, on load, and a normal
 /// launch gets nothing back.
 #[tauri::command]
 pub async fn demo_script() -> JResult<Option<Vec<String>>> {
-    if std::env::var("ARIA_DEMO").is_err() {
+    if std::env::var("NOVA_DEMO").is_err() {
         return Ok(None);
     }
     Ok(Some(vec![
@@ -574,7 +618,7 @@ pub async fn set_active_model(model: String) -> JResult<()> {
     Ok(())
 }
 
-/// Delete every stored key and reset to defaults. Backs `aria --reset`.
+/// Delete every stored key and reset to defaults. Backs `nova --reset`.
 #[tauri::command]
 pub async fn reset_key_config() -> JResult<()> {
     let config = KeyConfig::default();
@@ -647,7 +691,7 @@ pub async fn validate_key(provider: String, key: String) -> JResult<KeyCheck> {
     let Some(request) = probe(&provider, &key) else {
         return Ok(KeyCheck {
             ok: false,
-            message: format!("{provider} is not a provider ARIA can check."),
+            message: format!("{provider} is not a provider NOVA can check."),
             latency_ms: 0,
         });
     };
@@ -791,7 +835,7 @@ mod tests {
     }
 
     /// Hits OpenRouter for real and checks the catalogue still contains free
-    /// models, and that the id ARIA falls back to is one of them.
+    /// models, and that the id NOVA falls back to is one of them.
     ///
     /// This is the test that catches a default going stale — exactly how the
     /// previous default was found to have been withdrawn. It skips rather than
@@ -970,8 +1014,8 @@ mod tests {
     }
 
     #[test]
-    fn the_config_path_sits_under_aria() {
+    fn the_config_path_sits_under_nova() {
         let path = config_path().unwrap();
-        assert!(path.ends_with("aria/keys.json"), "{path:?}");
+        assert!(path.ends_with("nova/keys.json"), "{path:?}");
     }
 }

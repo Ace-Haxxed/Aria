@@ -1,8 +1,8 @@
 /**
- * The action log: every tool call ARIA makes, with its outcome and — where
+ * The action log: every tool call NOVA makes, with its outcome and — where
  * possible — a way to undo it.
  *
- * ARIA asks for nothing before acting, so this log is the whole record of what
+ * NOVA asks for nothing before acting, so this log is the whole record of what
  * it did. Entries are written when a call starts, not when it finishes, and
  * mirrored to SQLite, so a call that hangs or crashes the app still leaves
  * evidence. `undo` is the recovery path that confirmation used to be.

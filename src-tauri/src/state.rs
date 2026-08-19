@@ -10,7 +10,7 @@ pub const CLIPBOARD_HISTORY_LIMIT: usize = 50;
 pub struct AppState {
     /// Most-recent-first ring of clipboard entries, filled by the poller in `lib.rs`.
     pub clipboard_history: Mutex<VecDeque<String>>,
-    /// PID of the browser ARIA launched, so it can be cleaned up on exit.
+    /// PID of the browser NOVA launched, so it can be cleaned up on exit.
     pub browser_pid: Mutex<Option<u32>>,
     pub db: SqlitePool,
 }

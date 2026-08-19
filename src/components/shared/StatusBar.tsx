@@ -57,7 +57,7 @@ export function StatusBar({ onOpenSettings }: { onOpenSettings?: () => void }) {
 
           {phase === 'ready' && (
             <>
-              <Dot className="bg-aria-acting" />
+              <Dot className="bg-nova-acting" />
               <span className="truncate">
                 {label}
                 {model && <span className="opacity-70"> · {model}</span>}

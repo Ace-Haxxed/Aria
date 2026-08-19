@@ -19,7 +19,7 @@
 //! runs continuously — the expensive, accurate transcription only starts once
 //! this has fired.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use rustfft::{num_complex::Complex, FftPlanner};
@@ -275,7 +275,7 @@ fn load_templates(word: &str) -> Vec<Vec<[f32; N_MFCC]>> {
 fn save_templates(word: &str, templates: &[Vec<[f32; N_MFCC]>]) -> JResult<()> {
     let path = template_path(word)?;
     let text =
-        serde_json::to_string(templates).map_err(|e| AriaError::msg(e.to_string()))?;
+        serde_json::to_string(templates).map_err(|e| NovaError::msg(e.to_string()))?;
     std::fs::write(path, text)?;
     Ok(())
 }
@@ -319,12 +319,12 @@ fn open_stream(
         cpal::SampleFormat::I16 => build_stream::<i16>(device, &config, on_block),
         cpal::SampleFormat::U16 => build_stream::<u16>(device, &config, on_block),
         other => {
-            return Err(AriaError::msg(format!(
+            return Err(NovaError::msg(format!(
                 "The microphone reports an unsupported sample format ({other:?})."
             )))
         }
     };
-    stream.map_err(|e| AriaError::msg(format!("The microphone could not be opened: {e}")))
+    stream.map_err(|e| NovaError::msg(format!("The microphone could not be opened: {e}")))
 }
 
 /* ── Commands ───────────────────────────────────────────────────── */
@@ -386,8 +386,8 @@ pub struct Calibration {
 pub async fn calibrate_wake_word(word: String, seconds: Option<f32>) -> JResult<Calibration> {
     let templates = load_templates(&word);
     if templates.is_empty() {
-        return Err(AriaError::msg(format!(
-            "ARIA needs to hear you say \"{word}\" once before it can calibrate. \
+        return Err(NovaError::msg(format!(
+            "NOVA needs to hear you say \"{word}\" once before it can calibrate. \
              Record a sample first."
         )));
     }
@@ -402,7 +402,7 @@ pub async fn calibrate_wake_word(word: String, seconds: Option<f32>) -> JResult<
         record_window(Duration::from_secs_f32(seconds))
     })
     .await
-    .map_err(|e| AriaError::msg(format!("calibration recording failed: {e}")))??;
+    .map_err(|e| NovaError::msg(format!("calibration recording failed: {e}")))??;
 
     let previous = threshold_for(SENSITIVITY.load(Ordering::Relaxed));
 
@@ -522,14 +522,14 @@ pub async fn train_wake_word(word: String, replace: bool) -> JResult<WakeWordSta
 
     let captured = tokio::task::spawn_blocking(move || record_window(Duration::from_millis(1_800)))
         .await
-        .map_err(|e| AriaError::msg(format!("recording failed: {e}")))??;
+        .map_err(|e| NovaError::msg(format!("recording failed: {e}")))??;
 
     let mut planner = FftPlanner::new();
     let filters = mel_filterbank(FRAME_LEN.next_power_of_two());
     let frames = mfcc(&captured, &filters, &mut planner);
 
     if frames.len() < 10 {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "That was too short to learn from. Say the wake word clearly when the prompt appears.",
         ));
     }
@@ -539,8 +539,8 @@ pub async fn train_wake_word(word: String, replace: bool) -> JResult<WakeWordSta
     // training by a mean and detection by a peak is how you end up with a
     // template that trains cleanly and never matches.
     if peak_rms(&captured) < SILENCE_RMS {
-        return Err(AriaError::msg(
-            "ARIA did not hear anything. Check your microphone and try again.",
+        return Err(NovaError::msg(
+            "NOVA did not hear anything. Check your microphone and try again.",
         ));
     }
 
@@ -562,10 +562,10 @@ fn record_window(duration: Duration) -> JResult<Vec<f32>> {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
-        .ok_or_else(|| AriaError::msg("No microphone was found."))?;
+        .ok_or_else(|| NovaError::msg("No microphone was found."))?;
     let supported = device
         .default_input_config()
-        .map_err(|e| AriaError::msg(format!("The microphone could not be opened: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("The microphone could not be opened: {e}")))?;
 
     let source_rate = supported.sample_rate().0 as usize;
     let collected = Arc::new(Mutex::new(Vec::<f32>::new()));
@@ -576,7 +576,7 @@ fn record_window(duration: Duration) -> JResult<Vec<f32>> {
     })?;
     stream
         .play()
-        .map_err(|e| AriaError::msg(format!("The microphone could not be started: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("The microphone could not be started: {e}")))?;
 
     std::thread::sleep(duration);
     drop(stream);
@@ -610,8 +610,8 @@ pub async fn start_wake_word(app: AppHandle, word: String) -> JResult<WakeWordSt
 
     let templates = load_templates(&word);
     if templates.is_empty() {
-        return Err(AriaError::msg(format!(
-            "ARIA needs to hear you say \"{word}\" once before it can listen for it. Use Test in Settings → Voice."
+        return Err(NovaError::msg(format!(
+            "NOVA needs to hear you say \"{word}\" once before it can listen for it. Use Test in Settings → Voice."
         )));
     }
 
@@ -621,12 +621,12 @@ pub async fn start_wake_word(app: AppHandle, word: String) -> JResult<WakeWordSt
 
     let word_for_thread = word.clone();
     std::thread::Builder::new()
-        .name("aria-wakeword".into())
+        .name("nova-wakeword".into())
         .spawn(move || {
             listen_loop(app, word_for_thread, templates);
             let _ = finished_tx.send(());
         })
-        .map_err(|e| AriaError::msg(format!("could not start the listener: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not start the listener: {e}")))?;
 
     *lock(&SESSION) = Some(finished_rx);
     wake_word_status(word).await
@@ -659,10 +659,10 @@ fn open_listener() -> JResult<(cpal::Stream, Window, usize)> {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
-        .ok_or_else(|| AriaError::msg("No microphone was found."))?;
+        .ok_or_else(|| NovaError::msg("No microphone was found."))?;
     let supported = device
         .default_input_config()
-        .map_err(|e| AriaError::msg(format!("The microphone could not be opened: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("The microphone could not be opened: {e}")))?;
 
     let source_rate = supported.sample_rate().0 as usize;
     let buffer: Window = Arc::new(Mutex::new(Vec::with_capacity(WINDOW_SAMPLES * 2)));
@@ -680,7 +680,7 @@ fn open_listener() -> JResult<(cpal::Stream, Window, usize)> {
     })?;
     stream
         .play()
-        .map_err(|e| AriaError::msg(format!("The microphone could not be started: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("The microphone could not be started: {e}")))?;
 
     Ok((stream, buffer, source_rate))
 }

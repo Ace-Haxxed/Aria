@@ -15,11 +15,11 @@ interface TitleBarProps {
 
 /** Colour per agent state, matching the orb and the tray icon. */
 const STATE_TONE: Record<string, string> = {
-  idle: 'text-aria-idle',
-  listening: 'text-aria-listening',
-  thinking: 'text-aria-thinking',
-  speaking: 'text-aria-speaking',
-  acting: 'text-aria-acting',
+  idle: 'text-nova-idle',
+  listening: 'text-nova-listening',
+  thinking: 'text-nova-thinking',
+  speaking: 'text-nova-speaking',
+  acting: 'text-nova-acting',
 };
 
 /**
@@ -57,7 +57,7 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
       <div className="flex flex-1 items-center gap-2.5">
         <Emblem state={agentState} />
         <span className="text-[13px] font-semibold uppercase tracking-[0.3em] text-foreground">
-          ARIA
+          NOVA
         </span>
       </div>
 
@@ -143,7 +143,7 @@ function ProviderIndicator() {
 }
 
 /**
- * What ARIA is doing, from real state.
+ * What NOVA is doing, from real state.
  *
  * `agentState` is the live turn state and takes precedence; `phase` is the
  * connection check, which only matters when nothing is happening. Thinking

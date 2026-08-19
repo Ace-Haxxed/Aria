@@ -17,7 +17,7 @@ const ICONS: Record<ToastKind, typeof Info> = {
 
 const TONES: Record<ToastKind, string> = {
   error: 'border-risk-high/50 text-risk-high',
-  success: 'border-aria-acting/50 text-aria-acting',
+  success: 'border-nova-acting/50 text-nova-acting',
   info: 'border-primary/50 text-primary',
 };
 

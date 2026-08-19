@@ -9,7 +9,7 @@
 
 use super::{parse_combo, resolve_window, MouseButton, Point, Region, ScrollDirection, WindowInfo};
 use crate::platform::detect::Compositor as Comp;
-use crate::util::{has, run, run_owned, JResult, AriaError};
+use crate::util::{has, run, run_owned, JResult, NovaError};
 use serde_json::Value;
 
 fn compositor() -> Comp {
@@ -20,7 +20,7 @@ fn need_ydotool() -> JResult<()> {
     if has("ydotool") {
         return Ok(());
     }
-    Err(AriaError::missing(
+    Err(NovaError::missing(
         "ydotool",
         "Input control on Wayland needs ydotool, and its daemon must be running \
          (`systemctl --user enable --now ydotool` or `sudo systemctl enable --now ydotoold`).",
@@ -88,8 +88,8 @@ fn finish(bytes: Vec<u8>, region: Option<Region>, needs_crop: bool) -> JResult<V
     }
 }
 
-fn capture_failed(attempts: &[String]) -> AriaError {
-    AriaError::msg(format!(
+fn capture_failed(attempts: &[String]) -> NovaError {
+    NovaError::msg(format!(
         "Screen capture failed on this Wayland session.\n{}\n\nInstall the portal \
          backend for your desktop (xdg-desktop-portal-gnome, xdg-desktop-portal-kde \
          or xdg-desktop-portal-wlr), or run an X11 session.",
@@ -311,7 +311,7 @@ pub async fn mouse_position() -> JResult<Point> {
             });
         }
     }
-    Err(AriaError::msg(
+    Err(NovaError::msg(
         "Reading the cursor position is not possible on this Wayland compositor. \
          Hyprland is the only one that exposes it (via `hyprctl cursorpos`).",
     ))
@@ -445,7 +445,7 @@ fn keysym(name: &str) -> &str {
 pub async fn press_key(combo: &str) -> JResult<()> {
     let parts = parse_combo(combo);
     if parts.is_empty() {
-        return Err(AriaError::msg("empty key combo"));
+        return Err(NovaError::msg("empty key combo"));
     }
 
     let (mods, keys): (Vec<String>, Vec<String>) = parts
@@ -483,12 +483,12 @@ pub async fn press_key(combo: &str) -> JResult<()> {
     let mut down: Vec<u16> = Vec::new();
 
     for m in &mods {
-        let c = keycode(m).ok_or_else(|| AriaError::msg(format!("unknown modifier `{m}`")))?;
+        let c = keycode(m).ok_or_else(|| NovaError::msg(format!("unknown modifier `{m}`")))?;
         seq.push(format!("{c}:1"));
         down.push(c);
     }
     for k in &keys {
-        let c = keycode(k).ok_or_else(|| AriaError::msg(format!("unknown key `{k}`")))?;
+        let c = keycode(k).ok_or_else(|| NovaError::msg(format!("unknown key `{k}`")))?;
         seq.push(format!("{c}:1"));
         seq.push(format!("{c}:0"));
     }
@@ -505,7 +505,7 @@ pub async fn press_key(combo: &str) -> JResult<()> {
 pub async fn hold_key(key: &str) -> JResult<()> {
     need_ydotool()?;
     let name = parse_combo(key).into_iter().next().unwrap_or_default();
-    let c = keycode(&name).ok_or_else(|| AriaError::msg(format!("unknown key `{name}`")))?;
+    let c = keycode(&name).ok_or_else(|| NovaError::msg(format!("unknown key `{name}`")))?;
     run("ydotool", &["key", &format!("{c}:1")]).await?;
     Ok(())
 }
@@ -513,7 +513,7 @@ pub async fn hold_key(key: &str) -> JResult<()> {
 pub async fn release_key(key: &str) -> JResult<()> {
     need_ydotool()?;
     let name = parse_combo(key).into_iter().next().unwrap_or_default();
-    let c = keycode(&name).ok_or_else(|| AriaError::msg(format!("unknown key `{name}`")))?;
+    let c = keycode(&name).ok_or_else(|| NovaError::msg(format!("unknown key `{name}`")))?;
     run("ydotool", &["key", &format!("{c}:0")]).await?;
     Ok(())
 }
@@ -528,18 +528,18 @@ pub async fn list_windows() -> JResult<Vec<WindowInfo>> {
     }
 }
 
-fn unsupported(c: Comp) -> AriaError {
+fn unsupported(c: Comp) -> NovaError {
     match c {
-        Comp::Gnome => AriaError::msg(
+        Comp::Gnome => NovaError::msg(
             "GNOME on Wayland does not expose window management to applications. \
              Install the 'Window Calls' GNOME extension, or use an X11 session, \
-             to let ARIA manage windows.",
+             to let NOVA manage windows.",
         ),
-        Comp::Kde => AriaError::msg(
+        Comp::Kde => NovaError::msg(
             "KDE on Wayland restricts window management to KWin scripts. \
              Use an X11 session for full window control.",
         ),
-        _ => AriaError::msg(
+        _ => NovaError::msg(
             "Window management on this Wayland compositor is not supported. \
              Hyprland and Sway are fully supported; other compositors work on X11.",
         ),
@@ -548,7 +548,7 @@ fn unsupported(c: Comp) -> AriaError {
 
 async fn hyprland_windows() -> JResult<Vec<WindowInfo>> {
     if !has("hyprctl") {
-        return Err(AriaError::missing("hyprctl", "It ships with Hyprland."));
+        return Err(NovaError::missing("hyprctl", "It ships with Hyprland."));
     }
     let clients = run("hyprctl", &["-j", "clients"]).await?;
     let active = run("hyprctl", &["-j", "activewindow"]).await.ok();
@@ -558,7 +558,7 @@ async fn hyprland_windows() -> JResult<Vec<WindowInfo>> {
         .unwrap_or_default();
 
     let parsed: Value = serde_json::from_str(&clients.stdout)
-        .map_err(|e| AriaError::msg(format!("could not parse hyprctl output: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not parse hyprctl output: {e}")))?;
 
     let mut out = Vec::new();
     for c in parsed.as_array().cloned().unwrap_or_default() {
@@ -621,11 +621,11 @@ fn sway_collect(node: &Value, focused_id: i64, out: &mut Vec<WindowInfo>) {
 
 async fn sway_windows() -> JResult<Vec<WindowInfo>> {
     if !has("swaymsg") {
-        return Err(AriaError::missing("swaymsg", "It ships with Sway."));
+        return Err(NovaError::missing("swaymsg", "It ships with Sway."));
     }
     let tree = run("swaymsg", &["-t", "get_tree", "-r"]).await?;
     let parsed: Value = serde_json::from_str(&tree.stdout)
-        .map_err(|e| AriaError::msg(format!("could not parse swaymsg output: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not parse swaymsg output: {e}")))?;
 
     // `get_tree` marks the focused node inline; find it first so the recursive
     // walk can tag the right window.
@@ -655,7 +655,7 @@ async fn target_id(target: &str) -> JResult<String> {
     let windows = list_windows().await?;
     resolve_window(&windows, target)
         .map(|w| w.id.clone())
-        .ok_or_else(|| AriaError::msg(format!("no window matching `{target}`")))
+        .ok_or_else(|| NovaError::msg(format!("no window matching `{target}`")))
 }
 
 pub async fn focus_window(target: &str) -> JResult<()> {

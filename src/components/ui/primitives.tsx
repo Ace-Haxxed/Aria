@@ -1,5 +1,5 @@
 /**
- * The Radix-backed primitives ARIA uses, themed in one place.
+ * The Radix-backed primitives NOVA uses, themed in one place.
  *
  * These are the standard shadcn/ui recipes; they live together because the app
  * only needs a handful and a file each would be more navigation than value.
@@ -341,7 +341,7 @@ TooltipContent.displayName = 'TooltipContent';
 /* ── Card & badge ── */
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('aria-panel rounded-xl', className)} {...props} />;
+  return <div className={cn('nova-panel rounded-xl', className)} {...props} />;
 }
 
 export function Badge({

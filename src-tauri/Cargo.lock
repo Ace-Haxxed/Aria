@@ -120,51 +120,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aria"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "base64 0.22.1",
- "candle-core",
- "candle-transformers",
- "chrono",
- "cpal",
- "dirs 5.0.1",
- "enigo",
- "futures-util",
- "image",
- "keyring",
- "reqwest 0.12.28",
- "rustfft",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-http",
- "tauri-plugin-notification",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-store",
- "thiserror 2.0.20",
- "tokenizers 0.21.4",
- "tokio",
- "tokio-tungstenite",
- "trash",
- "walkdir",
- "which",
- "zbus",
- "zip 2.4.2",
-]
-
-[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3720,6 +3675,51 @@ dependencies = [
  "serde",
  "tauri-winrt-notification",
  "zbus",
+]
+
+[[package]]
+name = "nova"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "candle-core",
+ "candle-transformers",
+ "chrono",
+ "cpal",
+ "dirs 5.0.1",
+ "enigo",
+ "futures-util",
+ "image",
+ "keyring",
+ "reqwest 0.12.28",
+ "rustfft",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-http",
+ "tauri-plugin-notification",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-store",
+ "thiserror 2.0.20",
+ "tokenizers 0.21.4",
+ "tokio",
+ "tokio-tungstenite",
+ "trash",
+ "walkdir",
+ "which",
+ "zbus",
+ "zip 2.4.2",
 ]
 
 [[package]]

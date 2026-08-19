@@ -39,16 +39,18 @@ function getRecognition(): (new () => RecognitionLike) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-/** Tolerate the ways a recogniser might hear "hey aria". */
+/** Tolerate the ways a recogniser might hear "hey nova". */
 function matchesWakeWord(transcript: string, wakeWord: string): boolean {
   const heard = transcript.toLowerCase().replace(/[^a-z\s]/g, '').trim();
   const target = wakeWord.toLowerCase().trim();
   if (heard.includes(target)) return true;
 
   const key = target.split(/\s+/).pop() ?? target;
-  // How a recogniser tends to mangle "aria" — the previous list held
-  // mishearings of the old wake word and could never match this one.
-  return new RegExp(`\\b(${key}|aria|arya|area|ariah)\\b`).test(heard);
+  // How a recogniser tends to mangle "nova". `arya` and `area` were carried
+  // over from the previous wake word by a find-and-replace and match nothing
+  // anyone says to this one; `november` is what a recogniser reaches for when
+  // it decides a short word must be the NATO alphabet.
+  return new RegExp(`\\b(${key}|nova|novah|november)\\b`).test(heard);
 }
 
 /**

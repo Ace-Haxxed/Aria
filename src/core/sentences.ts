@@ -2,7 +2,7 @@
  * Splitting a reply into speakable sentences while it is still arriving.
  *
  * Waiting for a complete response before speaking wastes the whole generation
- * time: on slow hardware that is the difference between ARIA answering in
+ * time: on slow hardware that is the difference between NOVA answering in
  * two seconds and answering in twenty. The first sentence is usually complete
  * long before the last one, and speech is slower than generation, so once the
  * first sentence is playing the rest arrive well ahead of being needed.

@@ -1,4 +1,4 @@
-//! ARIA desktop backend.
+//! NOVA desktop backend.
 
 pub mod commands;
 pub mod platform;
@@ -62,7 +62,7 @@ fn try_register(
         .on_shortcut(shortcut, move |app, _shortcut, event| {
             // Fire on press only; otherwise every hotkey triggers twice.
             if event.state() == ShortcutState::Pressed {
-                let _ = app.emit("aria://hotkey", action.clone());
+                let _ = app.emit("nova://hotkey", action.clone());
             }
         })
         .map_err(|e| format!("`{accelerator}` is unavailable ({e})"))
@@ -161,16 +161,16 @@ async fn set_tray_active(app: tauri::AppHandle, active: bool) -> JResult<()> {
 }
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open ARIA", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open NOVA", true, None::<&str>)?;
     let mute = MenuItem::with_id(app, "mute", "Mute microphone", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &mute, &settings, &sep, &quit])?;
 
-    TrayIconBuilder::with_id("aria-tray")
+    TrayIconBuilder::with_id("nova-tray")
         .icon(app.default_window_icon().unwrap().clone())
-        .tooltip("ARIA")
+        .tooltip("NOVA")
         .menu(&menu)
         // Left click toggles the window, so the menu must not steal it.
         .show_menu_on_left_click(false)
@@ -183,14 +183,14 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                 }
             }
             "mute" => {
-                let _ = app.emit("aria://tray", "mute");
+                let _ = app.emit("nova://tray", "mute");
             }
             "settings" => {
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.show();
                     let _ = win.set_focus();
                 }
-                let _ = app.emit("aria://tray", "settings");
+                let _ = app.emit("nova://tray", "settings");
             }
             "quit" => app.exit(0),
             _ => {}
@@ -261,7 +261,13 @@ pub fn run() {
             let data_dir = app
                 .path()
                 .app_data_dir()
-                .unwrap_or_else(|_| std::env::temp_dir().join("aria"));
+                .unwrap_or_else(|_| std::env::temp_dir().join("nova"));
+
+            // The bundle identifier changed with the rename, and Tauri derives
+            // this directory from it — so settings, conversation history and
+            // the action log all appear to have vanished on first launch after
+            // upgrading. Carry them over before anything reads them.
+            util::adopt_previous_app_data(&data_dir);
 
             // The database has to exist before any command can run, so this is
             // one of the few places a blocking call in setup is correct.
@@ -292,7 +298,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
-                let _ = window.app_handle().emit("aria://window", "hidden");
+                let _ = window.app_handle().emit("nova://window", "hidden");
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -497,7 +503,7 @@ pub fn run() {
             set_tray_active,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running ARIA");
+        .expect("error while running NOVA");
 }
 
 #[cfg(test)]

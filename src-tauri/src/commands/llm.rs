@@ -23,7 +23,7 @@
 //! the caller so it can subscribe *before* invoking; allocating it here would
 //! leave a window in which the first chunk is emitted with nobody listening.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use futures_util::StreamExt;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -243,7 +243,7 @@ fn friendly_transport_error(provider: &str, url: &str, e: &reqwest::Error) -> St
         // running, which is a completely different fix from a network problem.
         if url.contains("localhost") || url.contains("127.0.0.1") {
             return format!(
-                "{label} is not running on this machine. ARIA can start it for you, or you can switch to a cloud provider in Settings → AI."
+                "{label} is not running on this machine. NOVA can start it for you, or you can switch to a cloud provider in Settings → AI."
             );
         }
         return format!("Could not reach {label}. Check your internet connection and try again.");
@@ -731,7 +731,7 @@ pub async fn http_request(
     timeout_ms: Option<u64>,
 ) -> JResult<HttpReply> {
     let method = reqwest::Method::from_bytes(method.to_uppercase().as_bytes())
-        .map_err(|_| AriaError::msg(format!("`{method}` is not an HTTP method")))?;
+        .map_err(|_| NovaError::msg(format!("`{method}` is not an HTTP method")))?;
 
     let mut request = client()
         .request(method, &url)
@@ -745,7 +745,7 @@ pub async fn http_request(
     }
 
     let response = request.send().await.map_err(|e| {
-        AriaError::msg(friendly_transport_error("", &url, &e))
+        NovaError::msg(friendly_transport_error("", &url, &e))
     })?;
 
     let status = response.status();

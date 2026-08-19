@@ -36,9 +36,9 @@ fn main() {
 
     // Scoring, and how long it takes.
     let started = Instant::now();
-    let score_same = aria_lib::commands::wakeword::probe_score(&template, &same);
+    let score_same = nova_lib::commands::wakeword::probe_score(&template, &same);
     let per_window_ms = started.elapsed().as_millis();
-    let score_other = aria_lib::commands::wakeword::probe_score(&template, &other);
+    let score_other = nova_lib::commands::wakeword::probe_score(&template, &other);
 
     println!("\n--- results ---");
     println!("same word  : {score_same:.3}");
@@ -50,7 +50,7 @@ fn main() {
     );
 
     for sensitivity in [3u32, 5, 7, 9] {
-        let threshold = aria_lib::commands::wakeword::probe_threshold(sensitivity);
+        let threshold = nova_lib::commands::wakeword::probe_threshold(sensitivity);
         println!(
             "  sensitivity {sensitivity}: threshold {threshold:.2} -> same={} other={}",
             if score_same <= threshold { "FIRE" } else { "miss" },
@@ -73,6 +73,6 @@ fn countdown() {
 }
 
 fn record() -> Result<Vec<f32>, String> {
-    aria_lib::commands::wakeword::probe_record(std::time::Duration::from_millis(1_800))
+    nova_lib::commands::wakeword::probe_record(std::time::Duration::from_millis(1_800))
         .map_err(|e| e.to_string())
 }

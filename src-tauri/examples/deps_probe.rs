@@ -4,20 +4,20 @@
 //! regression in the per-compositor logic is visible without launching the GUI.
 
 fn main() {
-    let info = aria_lib::platform::detect::refreshed(aria_lib::platform::info());
+    let info = nova_lib::platform::detect::refreshed(nova_lib::platform::info());
     println!(
         "{:?} / {:?} / {:?} / pm={:?}",
         info.os, info.session_type, info.compositor, info.package_manager
     );
     println!(
         "portal backends: gnome={} kde={} wlr={}",
-        aria_lib::platform::detect::has_portal_backend("gnome"),
-        aria_lib::platform::detect::has_portal_backend("kde"),
-        aria_lib::platform::detect::has_portal_backend("wlr"),
+        nova_lib::platform::detect::has_portal_backend("gnome"),
+        nova_lib::platform::detect::has_portal_backend("kde"),
+        nova_lib::platform::detect::has_portal_backend("wlr"),
     );
     println!();
 
-    let checks = aria_lib::platform::detect::dependency_checks(&info);
+    let checks = nova_lib::platform::detect::dependency_checks(&info);
     let mut missing_required = 0;
     for c in &checks {
         let mark = if c.present {

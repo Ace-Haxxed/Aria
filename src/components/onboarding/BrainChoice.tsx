@@ -47,7 +47,7 @@ export function BrainChoice({ onReadyChange }: BrainChoiceProps) {
   return (
     <div className="space-y-5">
       <header>
-        <h2 className="text-xl font-semibold tracking-tight">How should ARIA think?</h2>
+        <h2 className="text-xl font-semibold tracking-tight">How should NOVA think?</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           You can change this later in Settings.
         </p>
@@ -151,7 +151,7 @@ function ChoiceCard({
       <ul className="mt-3 space-y-1.5">
         {points.map((p) => (
           <li key={p.text} className="flex items-start gap-2 text-xs leading-snug">
-            <span className={cn('mt-0.5 shrink-0', p.good ? 'text-aria-acting' : 'text-muted-foreground')}>
+            <span className={cn('mt-0.5 shrink-0', p.good ? 'text-nova-acting' : 'text-muted-foreground')}>
               {p.good ? '✓' : '~'}
             </span>
             <span className={p.good ? 'text-foreground/90' : 'text-muted-foreground'}>{p.text}</span>
@@ -285,8 +285,8 @@ function LocalSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void
   if (phase === 'ready') {
     const model = hasUsableModel(models) ? DEFAULT_LOCAL_MODEL : models[0];
     return (
-      <Card className="flex items-center gap-3 border-aria-acting/40 bg-aria-acting/5 p-4">
-        <Check className="h-5 w-5 shrink-0 text-aria-acting" />
+      <Card className="flex items-center gap-3 border-nova-acting/40 bg-nova-acting/5 p-4">
+        <Check className="h-5 w-5 shrink-0 text-nova-acting" />
         <div className="min-w-0 text-sm">
           <div className="font-medium">Ready</div>
           <div className="truncate text-xs text-muted-foreground">
@@ -303,7 +303,7 @@ function LocalSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void
         <div className="text-sm">
           <div className="font-medium">Ollama is not installed yet</div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            It is the program that runs AI models on your own computer. ARIA can install it
+            It is the program that runs AI models on your own computer. NOVA can install it
             using your system's package manager — you will see your usual password prompt.
           </p>
         </div>
@@ -331,7 +331,7 @@ function LocalSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void
         <div className="text-sm">
           <div className="font-medium">Download an AI model</div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {DEFAULT_LOCAL_MODEL} — about 4 GB. This happens once, and then ARIA works with no
+            {DEFAULT_LOCAL_MODEL} — about 4 GB. This happens once, and then NOVA works with no
             internet at all.
           </p>
         </div>
@@ -513,19 +513,19 @@ function CloudSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void
             placeholder="sk-…"
             className={cn(
               'pr-9',
-              result?.valid === true && 'border-aria-acting',
+              result?.valid === true && 'border-nova-acting',
               result?.valid === false && 'border-risk-high',
             )}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             {checking && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            {!checking && result?.valid === true && <Check className="h-4 w-4 text-aria-acting" />}
+            {!checking && result?.valid === true && <Check className="h-4 w-4 text-nova-acting" />}
             {!checking && result?.valid === false && <AlertCircle className="h-4 w-4 text-risk-high" />}
           </div>
         </div>
 
         {result && (
-          <p className={cn('text-xs leading-relaxed', result.valid ? 'text-aria-acting' : 'text-risk-high')}>
+          <p className={cn('text-xs leading-relaxed', result.valid ? 'text-nova-acting' : 'text-risk-high')}>
             {result.message}
           </p>
         )}
@@ -546,7 +546,7 @@ function CloudSetup({ onReadyChange }: { onReadyChange: (ready: boolean) => void
           <div className="min-w-0">
             <div className="text-sm font-medium">Use cloud AI to teach a local AI</div>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              ARIA saves your exchanges to a file on this computer so you can fine-tune a local
+              NOVA saves your exchanges to a file on this computer so you can fine-tune a local
               model on them later. The local model gets better at your work without any of it
               leaving your machine. Nothing is uploaded, and you can delete it at any time.
             </p>

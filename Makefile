@@ -1,14 +1,14 @@
-# ARIA — Adaptive Reasoning and Intelligence Assistant
+# NOVA — Neural Operative Virtual Assistant
 #
 # Recipes must be indented with tabs, not spaces.
 
 .PHONY: install uninstall dev build check test clean
 
-## Build and install the `aria` command system-wide.
+## Build and install the `nova` command system-wide.
 install:
 	bash scripts/install.sh
 
-## Remove the `aria` command. Leaves your keys and data alone.
+## Remove the `nova` command. Leaves your keys and data alone.
 uninstall:
 	bash scripts/uninstall.sh
 

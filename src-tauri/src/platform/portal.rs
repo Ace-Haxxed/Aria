@@ -18,7 +18,7 @@
 //! object. The subscription therefore has to be live *before* the method call,
 //! or a portal that answers immediately races us and the response is lost.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use std::collections::HashMap;
 use std::time::Duration;
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
@@ -67,14 +67,14 @@ fn handle_token() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    format!("aria_{}_{}", std::process::id(), nanos)
+    format!("nova_{}_{}", std::process::id(), nanos)
 }
 
 /// Turn a `file://` URI into a path, undoing percent-encoding.
 fn uri_to_path(uri: &str) -> JResult<std::path::PathBuf> {
     let raw = uri
         .strip_prefix("file://")
-        .ok_or_else(|| AriaError::msg(format!("the portal returned an unusable URI: {uri}")))?;
+        .ok_or_else(|| NovaError::msg(format!("the portal returned an unusable URI: {uri}")))?;
 
     let bytes = raw.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
@@ -98,7 +98,7 @@ fn uri_to_path(uri: &str) -> JResult<std::path::PathBuf> {
 /// Capture the whole screen via the portal and return the PNG bytes.
 pub async fn screenshot() -> JResult<Vec<u8>> {
     let conn = zbus::Connection::session().await.map_err(|e| {
-        AriaError::msg(format!(
+        NovaError::msg(format!(
             "could not reach the session bus for screen capture: {e}"
         ))
     })?;
@@ -106,7 +106,7 @@ pub async fn screenshot() -> JResult<Vec<u8>> {
     let unique = conn
         .unique_name()
         .map(|n| n.to_string())
-        .ok_or_else(|| AriaError::msg("the session bus did not assign us a name"))?;
+        .ok_or_else(|| NovaError::msg("the session bus did not assign us a name"))?;
 
     let token = handle_token();
     let expected = request_path(&unique, &token);
@@ -114,18 +114,18 @@ pub async fn screenshot() -> JResult<Vec<u8>> {
     // Subscribe first: the portal may answer before `screenshot()` returns.
     let request = RequestProxy::builder(&conn)
         .path(expected.clone())
-        .map_err(|e| AriaError::msg(format!("bad portal request path: {e}")))?
+        .map_err(|e| NovaError::msg(format!("bad portal request path: {e}")))?
         .build()
         .await
-        .map_err(|e| AriaError::msg(format!("could not watch the portal request: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not watch the portal request: {e}")))?;
 
     let mut responses = request
         .receive_response()
         .await
-        .map_err(|e| AriaError::msg(format!("could not subscribe to the portal: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not subscribe to the portal: {e}")))?;
 
     let proxy = ScreenshotProxy::new(&conn).await.map_err(|e| {
-        AriaError::msg(format!(
+        NovaError::msg(format!(
             "xdg-desktop-portal is not available: {e}. Install xdg-desktop-portal \
              and the backend for your desktop (xdg-desktop-portal-gnome, -kde or -wlr)."
         ))
@@ -141,12 +141,12 @@ pub async fn screenshot() -> JResult<Vec<u8>> {
     let actual = proxy
         .screenshot("", options)
         .await
-        .map_err(|e| AriaError::msg(format!("the screenshot portal refused: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("the screenshot portal refused: {e}")))?;
 
     // Portals are supposed to use the token-derived path, but the spec allows
     // any path; if it differs our subscription is on the wrong object.
     if actual.as_str() != expected {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "the screenshot portal used an unexpected request path ({}); \
              this desktop's portal backend may be out of date.",
             actual.as_str()
@@ -155,22 +155,22 @@ pub async fn screenshot() -> JResult<Vec<u8>> {
 
     let signal = tokio::time::timeout(PORTAL_TIMEOUT, futures_util::StreamExt::next(&mut responses))
         .await
-        .map_err(|_| AriaError::msg("the screenshot portal did not respond in time"))?
-        .ok_or_else(|| AriaError::msg("the screenshot portal closed without responding"))?;
+        .map_err(|_| NovaError::msg("the screenshot portal did not respond in time"))?
+        .ok_or_else(|| NovaError::msg("the screenshot portal closed without responding"))?;
 
     let args = signal
         .args()
-        .map_err(|e| AriaError::msg(format!("could not read the portal response: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not read the portal response: {e}")))?;
 
     match args.response {
         0 => {}
         1 => {
-            return Err(AriaError::msg(
+            return Err(NovaError::msg(
                 "The screen capture request was cancelled.",
             ))
         }
         other => {
-            return Err(AriaError::msg(format!(
+            return Err(NovaError::msg(format!(
                 "The desktop refused the screen capture request (code {other}). \
                  Check Settings → Privacy → Screen Sharing."
             )))
@@ -181,11 +181,11 @@ pub async fn screenshot() -> JResult<Vec<u8>> {
         .results
         .get("uri")
         .and_then(|v| String::try_from(v.clone()).ok())
-        .ok_or_else(|| AriaError::msg("the portal reported success but returned no image"))?;
+        .ok_or_else(|| NovaError::msg("the portal reported success but returned no image"))?;
 
     let path = uri_to_path(&uri)?;
     let bytes = std::fs::read(&path).map_err(|e| {
-        AriaError::msg(format!(
+        NovaError::msg(format!(
             "could not read the captured image at {}: {e}",
             path.display()
         ))

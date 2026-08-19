@@ -1,6 +1,6 @@
 //! Live probe of the hardened Ollama path: `cargo run --example ollama_probe`.
 
-use aria_lib::commands::ollama;
+use nova_lib::commands::ollama;
 
 #[tokio::main]
 async fn main() {

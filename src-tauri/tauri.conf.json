@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "aria",
+  "productName": "nova",
   "version": "1.0.0",
-  "identifier": "ai.aria.assistant",
+  "identifier": "ai.nova.assistant",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "ARIA",
+        "title": "NOVA",
         "label": "main",
         "width": 1280,
         "height": 820,
@@ -59,8 +59,8 @@
     ],
     "category": "Utility",
     "shortDescription": "AI assistant with full device control",
-    "longDescription": "ARIA is a voice-driven AI assistant that can see your screen, control your mouse and keyboard, manage files, drive a browser and run commands.",
-    "copyright": "Copyright \u00a9 2026 ARIA contributors",
+    "longDescription": "NOVA is a voice-driven AI assistant that can see your screen, control your mouse and keyboard, manage files, drive a browser and run commands.",
+    "copyright": "Copyright \u00a9 2026 NOVA contributors",
     "linux": {
       "deb": {
         "depends": [

@@ -25,7 +25,7 @@ export function TokenMeter() {
 
   const percent = Math.min(100, breakdown.fraction * 100);
   const tone =
-    percent >= 80 ? 'text-risk-high' : percent >= 50 ? 'text-risk-medium' : 'text-aria-acting';
+    percent >= 80 ? 'text-risk-high' : percent >= 50 ? 'text-risk-medium' : 'text-nova-acting';
 
   return (
     <div className="relative">
@@ -64,7 +64,7 @@ export function TokenMeter() {
                     ? 'bg-risk-high'
                     : percent >= 50
                       ? 'bg-risk-medium'
-                      : 'bg-aria-acting',
+                      : 'bg-nova-acting',
                 )}
                 style={{ width: `${percent}%` }}
               />

@@ -1,13 +1,13 @@
 /**
  * Risk classification for the action log.
  *
- * ARIA executes every tool call the model makes, immediately and without
+ * NOVA executes every tool call the model makes, immediately and without
  * asking. This module no longer gates anything — it exists to label what
  * happened, so the action log can say how serious each call was and the UI can
  * colour it accordingly.
  *
  * The classification is still worth computing precisely: with no confirmation
- * step, the log is the only record of what ARIA did to this machine, and
+ * step, the log is the only record of what NOVA did to this machine, and
  * "deleted a file" needs to stand out from "took a screenshot" when the user
  * goes looking for what went wrong.
  */

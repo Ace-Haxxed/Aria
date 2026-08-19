@@ -101,7 +101,7 @@ export interface ToolCall {
    *
    * Gemini's thinking models return a `thoughtSignature` beside every
    * `functionCall` and reject the following turn if the call is replayed
-   * without it. It is meaningless to ARIA — it is never read, only carried —
+   * without it. It is meaningless to NOVA — it is never read, only carried —
    * but dropping it breaks multi-step tool use entirely.
    */
   signature?: string;
@@ -146,7 +146,7 @@ export interface ActionLogEntry {
 /* ── LLM ─────────────────────────────────────────────────────── */
 
 export type LLMProvider =
-  /** Runs inside the ARIA process. No server, no key, no internet. */
+  /** Runs inside the NOVA process. No server, no key, no internet. */
   | 'builtin'
   /** One key, every model — routes to whichever provider hosts it. */
   | 'openrouter'
@@ -297,7 +297,7 @@ export interface Settings {
   modelWarmup: boolean;
   /** Show which model answered, and how fast, under each reply. */
   showModelStats: boolean;
-  /** "Goodbye ARIA" hides the window to the tray. */
+  /** "Goodbye NOVA" hides the window to the tray. */
   goodbyeMinimizes: boolean;
   /** Bring the window to the front when the wake word fires. */
   raiseOnWakeWord: boolean;

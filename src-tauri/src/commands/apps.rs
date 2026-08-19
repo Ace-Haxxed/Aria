@@ -1,7 +1,7 @@
 //! Launching, listing and stopping applications.
 
 use crate::platform::detect::OsKind;
-use crate::util::{has, run, spawn_detached, JResult, AriaError};
+use crate::util::{has, run, spawn_detached, JResult, NovaError};
 use sysinfo::{ProcessesToUpdate, System};
 
 /// Find the `.desktop` entry whose name or exec matches, so "spotify",
@@ -78,7 +78,7 @@ pub async fn launch_app(name: String) -> JResult<String> {
                     return Ok(format!("launched {name} via {entry}"));
                 }
             }
-            Err(AriaError::msg(format!(
+            Err(NovaError::msg(format!(
                 "could not find an application called `{name}`"
             )))
         }
@@ -99,7 +99,7 @@ pub async fn kill_app(name: String) -> JResult<String> {
         OsKind::Windows => {
             let out = run("taskkill", &["/IM", &format!("{name}.exe"), "/F"]).await?;
             if !out.ok() {
-                return Err(AriaError::msg(format!(
+                return Err(NovaError::msg(format!(
                     "could not stop {name}: {}",
                     out.stderr.trim()
                 )));
@@ -110,13 +110,13 @@ pub async fn kill_app(name: String) -> JResult<String> {
             let out = run("pkill", &["-f", &name]).await?;
             // pkill exits 1 when nothing matched — that is not an error worth raising.
             if out.exit_code > 1 {
-                return Err(AriaError::msg(format!(
+                return Err(NovaError::msg(format!(
                     "could not stop {name}: {}",
                     out.stderr.trim()
                 )));
             }
             if out.exit_code == 1 {
-                return Err(AriaError::msg(format!("`{name}` is not running")));
+                return Err(NovaError::msg(format!("`{name}` is not running")));
             }
             Ok(format!("stopped {name}"))
         }

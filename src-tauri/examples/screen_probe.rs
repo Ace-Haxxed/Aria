@@ -5,15 +5,15 @@
 
 #[tokio::main]
 async fn main() {
-    let info = aria_lib::platform::info();
+    let info = nova_lib::platform::info();
     println!(
         "session: {:?} / compositor: {:?} / backend: {:?}",
         info.session_type,
         info.compositor,
-        aria_lib::platform::backend()
+        nova_lib::platform::backend()
     );
 
-    match aria_lib::platform::screenshot(None).await {
+    match nova_lib::platform::screenshot(None).await {
         Ok(bytes) => {
             let png = bytes.starts_with(&[0x89, b'P', b'N', b'G']);
             println!("full screen OK: {} bytes, png header: {png}", bytes.len());
@@ -25,13 +25,13 @@ async fn main() {
         }
     }
 
-    let region = aria_lib::platform::Region {
+    let region = nova_lib::platform::Region {
         x: 0,
         y: 0,
         w: 200,
         h: 100,
     };
-    match aria_lib::platform::screenshot(Some(region)).await {
+    match nova_lib::platform::screenshot(Some(region)).await {
         Ok(bytes) => {
             let img = image::load_from_memory(&bytes).expect("region capture is not an image");
             println!(

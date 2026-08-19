@@ -4,7 +4,7 @@
 //! exposed as a tool — the safety layer can gate a confirmation, but it cannot
 //! bring a file back, and "move to trash" keeps every action reversible.
 
-use crate::util::{cap_output, expand_path, spawn_detached, JResult, AriaError};
+use crate::util::{cap_output, expand_path, spawn_detached, JResult, NovaError};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use walkdir::WalkDir;
@@ -51,10 +51,10 @@ pub async fn read_file(path: String) -> JResult<String> {
     let meta = std::fs::metadata(&p)?;
 
     if meta.is_dir() {
-        return Err(AriaError::msg(format!("`{path}` is a directory")));
+        return Err(NovaError::msg(format!("`{path}` is a directory")));
     }
     if meta.len() > MAX_READ_BYTES {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "`{path}` is {} bytes — too large to read into context. \
              Use search_files or read a specific section instead.",
             meta.len()
@@ -64,7 +64,7 @@ pub async fn read_file(path: String) -> JResult<String> {
     let bytes = std::fs::read(&p)?;
     // Binary files would otherwise arrive as replacement characters.
     if bytes.contains(&0) {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "`{path}` appears to be a binary file"
         )));
     }
@@ -157,9 +157,9 @@ pub async fn move_file(src: String, dst: String) -> JResult<String> {
 pub async fn delete_file(path: String) -> JResult<String> {
     let p = expand_path(&path);
     if !p.exists() {
-        return Err(AriaError::msg(format!("`{path}` does not exist")));
+        return Err(NovaError::msg(format!("`{path}` does not exist")));
     }
-    trash::delete(&p).map_err(|e| AriaError::msg(format!("could not move to trash: {e}")))?;
+    trash::delete(&p).map_err(|e| NovaError::msg(format!("could not move to trash: {e}")))?;
     Ok(p.to_string_lossy().to_string())
 }
 
@@ -302,7 +302,7 @@ pub async fn zip_files(files: Vec<String>, output: String) -> JResult<String> {
                 let rel = entry.path().strip_prefix(&p).unwrap_or(entry.path());
                 let name = format!("{base}/{}", rel.to_string_lossy());
                 zip.start_file(name, options)
-                    .map_err(|e| AriaError::msg(e.to_string()))?;
+                    .map_err(|e| NovaError::msg(e.to_string()))?;
                 let bytes = std::fs::read(entry.path())?;
                 zip.write_all(&bytes)?;
             }
@@ -312,13 +312,13 @@ pub async fn zip_files(files: Vec<String>, output: String) -> JResult<String> {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "file".into());
             zip.start_file(name, options)
-                .map_err(|e| AriaError::msg(e.to_string()))?;
+                .map_err(|e| NovaError::msg(e.to_string()))?;
             let bytes = std::fs::read(&p)?;
             zip.write_all(&bytes)?;
         }
     }
 
-    zip.finish().map_err(|e| AriaError::msg(e.to_string()))?;
+    zip.finish().map_err(|e| NovaError::msg(e.to_string()))?;
     Ok(out_path.to_string_lossy().to_string())
 }
 
@@ -329,13 +329,13 @@ pub async fn unzip_file(path: String, dest: String) -> JResult<Vec<String>> {
     std::fs::create_dir_all(&dest_dir)?;
 
     let file = std::fs::File::open(&archive_path)?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| AriaError::msg(e.to_string()))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| NovaError::msg(e.to_string()))?;
     let mut written = Vec::new();
 
     for i in 0..archive.len() {
         let mut entry = archive
             .by_index(i)
-            .map_err(|e| AriaError::msg(e.to_string()))?;
+            .map_err(|e| NovaError::msg(e.to_string()))?;
 
         // `enclosed_name` rejects `../` traversal — a zip must never be able to
         // write outside the destination directory.
@@ -367,27 +367,27 @@ pub async fn restore_from_trash(original_path: String) -> JResult<String> {
     let name = p
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
-        .ok_or_else(|| AriaError::msg("invalid path"))?;
+        .ok_or_else(|| NovaError::msg("invalid path"))?;
 
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         let items = trash::os_limited::list()
-            .map_err(|e| AriaError::msg(format!("could not read trash: {e}")))?;
+            .map_err(|e| NovaError::msg(format!("could not read trash: {e}")))?;
 
         let item = items
             .into_iter()
             .filter(|i| i.name.to_string_lossy() == name)
             .max_by_key(|i| i.time_deleted)
-            .ok_or_else(|| AriaError::msg(format!("`{name}` is not in the trash")))?;
+            .ok_or_else(|| NovaError::msg(format!("`{name}` is not in the trash")))?;
 
         trash::os_limited::restore_all([item])
-            .map_err(|e| AriaError::msg(format!("could not restore: {e}")))?;
+            .map_err(|e| NovaError::msg(format!("could not restore: {e}")))?;
         Ok(p.to_string_lossy().to_string())
     }
 
     #[cfg(not(all(unix, not(target_os = "macos"))))]
     {
-        Err(AriaError::msg(format!(
+        Err(NovaError::msg(format!(
             "Restoring from the trash is not scriptable on this platform. \
              Open the Trash and restore `{name}` manually."
         )))

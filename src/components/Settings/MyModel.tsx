@@ -121,7 +121,7 @@ export function MyModel() {
     try {
       const { desktop } = await import('@/platform/desktop');
       await desktop.startFinetuning({
-        name: name.trim() || `my-aria-${new Date().toISOString().slice(0, 10)}`,
+        name: name.trim() || `my-nova-${new Date().toISOString().slice(0, 10)}`,
         // Only offered when the libraries are missing, and only on this press.
         autoInstall: readiness?.ready === false,
       });
@@ -191,7 +191,7 @@ export function MyModel() {
       {readiness && !readiness.pythonAvailable && (
         <Notice tone="warn" icon={AlertCircle}>
           {readiness.problem ??
-            'Fine-tuning needs Python 3. Everything else in ARIA works without it.'}
+            'Fine-tuning needs Python 3. Everything else in NOVA works without it.'}
         </Notice>
       )}
 
@@ -204,7 +204,7 @@ export function MyModel() {
 
       {readiness?.pythonAvailable && !enoughData && (
         <Notice tone="info" icon={GraduationCap}>
-          {pairs} of {MINIMUM} conversations. Keep using ARIA with training capture on and this
+          {pairs} of {MINIMUM} conversations. Keep using NOVA with training capture on and this
           fills up on its own.
         </Notice>
       )}
@@ -216,7 +216,7 @@ export function MyModel() {
             id="model-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={`my-aria-${new Date().toISOString().slice(0, 10)}`}
+            placeholder={`my-nova-${new Date().toISOString().slice(0, 10)}`}
           />
           <Button
             onClick={() => void start()}
@@ -281,7 +281,7 @@ export function MyModel() {
               )}
 
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                ARIA stays usable while this runs.
+                NOVA stays usable while this runs.
               </p>
             </Card>
           </motion.div>
@@ -295,7 +295,7 @@ export function MyModel() {
           <div className="text-sm font-medium">Your trained models</div>
           {adapters.map((adapter) => (
             <Card key={adapter.name} className="flex items-center gap-3 p-3">
-              <Check className="h-4 w-4 shrink-0 text-aria-acting" />
+              <Check className="h-4 w-4 shrink-0 text-nova-acting" />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">{adapter.name}</div>
                 <div className="text-[11px] text-muted-foreground">

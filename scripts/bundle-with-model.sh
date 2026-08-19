@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Package ARIA together with an AI model, for machines that have no internet.
+# Package NOVA together with an AI model, for machines that have no internet.
 #
 # The normal installer is small and downloads the model on first launch. That
 # is the wrong shape for an air-gapped machine, a workshop with no wifi, or
@@ -17,12 +17,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Mirrors util::data_dir() in the Rust backend: a machine that already has
 # ~/.jarvis keeps using it, because that is where the downloaded weights are.
-if [ -d "$HOME/.aria" ] || [ ! -d "$HOME/.jarvis" ]; then
-  ARIA_HOME="$HOME/.aria"
+if [ -d "$HOME/.nova" ] || [ ! -d "$HOME/.jarvis" ]; then
+  NOVA_HOME="$HOME/.nova"
 else
-  ARIA_HOME="$HOME/.jarvis"
+  NOVA_HOME="$HOME/.jarvis"
 fi
-MODELS_DIR="$ARIA_HOME/models"
+MODELS_DIR="$NOVA_HOME/models"
 BUILD_DIR="$ROOT/target/bundle"
 
 # Kept in step with src-tauri/src/commands/models.rs. Each line is:
@@ -88,7 +88,7 @@ npm run build >/dev/null
 say "Building the release binary (this takes a while)"
 cd "$ROOT/src-tauri"
 cargo build --release
-BINARY="$ROOT/src-tauri/target/release/aria"
+BINARY="$ROOT/src-tauri/target/release/nova"
 [ -f "$BINARY" ] || die "The build did not produce $BINARY"
 
 # ── Model ────────────────────────────────────────────────────────────
@@ -144,13 +144,13 @@ fi
 
 # ── Assemble ─────────────────────────────────────────────────────────
 
-STAGE="$BUILD_DIR/aria-bundle"
+STAGE="$BUILD_DIR/nova-bundle"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/models" "$STAGE/scripts"
 
 say "Assembling the bundle"
-cp "$BINARY" "$STAGE/aria"
-chmod +x "$STAGE/aria"
+cp "$BINARY" "$STAGE/nova"
+chmod +x "$STAGE/nova"
 cp "$MODEL_PATH" "$STAGE/models/$MODEL_ID.gguf"
 cp "$TOKENIZER_PATH" "$STAGE/models/$MODEL_ID.tokenizer.json"
 
@@ -160,7 +160,7 @@ cp "$TOKENIZER_PATH" "$STAGE/models/$MODEL_ID.tokenizer.json"
 cat > "$STAGE/install-bundle.sh" <<'INSTALLER'
 #!/usr/bin/env bash
 #
-# Install ARIA and its model from this bundle. No internet needed.
+# Install NOVA and its model from this bundle. No internet needed.
 #
 set -euo pipefail
 
@@ -176,12 +176,12 @@ esac
 
 # Mirrors util::data_dir() in the Rust backend: a machine that already has
 # ~/.jarvis keeps using it, because that is where the downloaded weights are.
-if [ -d "$HOME/.aria" ] || [ ! -d "$HOME/.jarvis" ]; then
-  ARIA_HOME="$HOME/.aria"
+if [ -d "$HOME/.nova" ] || [ ! -d "$HOME/.jarvis" ]; then
+  NOVA_HOME="$HOME/.nova"
 else
-  ARIA_HOME="$HOME/.jarvis"
+  NOVA_HOME="$HOME/.jarvis"
 fi
-MODELS_DIR="$ARIA_HOME/models"
+MODELS_DIR="$NOVA_HOME/models"
 mkdir -p "$BIN_DIR" "$MODELS_DIR"
 
 say "Installing the model to $MODELS_DIR"
@@ -196,25 +196,25 @@ for file in "$HERE"/models/*; do
 done
 
 if [ -d "$HERE/scripts" ] && [ -n "$(ls -A "$HERE/scripts" 2>/dev/null)" ]; then
-  mkdir -p "$ARIA_HOME/scripts"
-  cp "$HERE"/scripts/* "$ARIA_HOME/scripts/"
+  mkdir -p "$NOVA_HOME/scripts"
+  cp "$HERE"/scripts/* "$NOVA_HOME/scripts/"
 fi
 
-say "Installing ARIA to $BIN_DIR"
-cp "$HERE/aria" "$BIN_DIR/aria"
-chmod +x "$BIN_DIR/aria"
+say "Installing NOVA to $BIN_DIR"
+cp "$HERE/nova" "$BIN_DIR/nova"
+chmod +x "$BIN_DIR/nova"
 
 # A desktop entry, so it appears in the applications menu rather than only
 # being runnable from a terminal.
 if [ "$(uname -s)" = "Linux" ]; then
   APPS="$HOME/.local/share/applications"
   mkdir -p "$APPS"
-  cat > "$APPS/aria.desktop" <<DESKTOP
+  cat > "$APPS/nova.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=ARIA
+Name=NOVA
 Comment=AI assistant that runs on this machine
-Exec=$BIN_DIR/aria
+Exec=$BIN_DIR/nova
 Terminal=false
 Categories=Utility;
 DESKTOP
@@ -224,8 +224,8 @@ fi
 echo
 say "Done."
 case ":$PATH:" in
-  *":$BIN_DIR:"*) say "Run it with: aria" ;;
-  *) say "Run it with: $BIN_DIR/aria"
+  *":$BIN_DIR:"*) say "Run it with: nova" ;;
+  *) say "Run it with: $BIN_DIR/nova"
      say "(add $BIN_DIR to your PATH to run it by name)" ;;
 esac
 say "It works offline — the model is already installed."
@@ -233,10 +233,10 @@ INSTALLER
 chmod +x "$STAGE/install-bundle.sh"
 
 cat > "$STAGE/README.txt" <<READMETXT
-ARIA — offline bundle
+NOVA — offline bundle
 =======================
 
-This archive contains ARIA and an AI model, so it works with no internet.
+This archive contains NOVA and an AI model, so it works with no internet.
 
   Model:    $MODEL_ID
   Platform: $PLATFORM ($(uname -m))
@@ -245,27 +245,27 @@ To install:
 
   ./install-bundle.sh
 
-That copies the model into ARIA's data directory and the binary to ~/.local/bin.
+That copies the model into NOVA's data directory and the binary to ~/.local/bin.
 Nothing is downloaded and nothing needs an account.
 
 Requirements on the target machine:
   - Linux: webkit2gtk 4.1, gtk3
   - macOS: 12 or newer
 
-ARIA works entirely offline with this model. Adding a cloud API key later is
+NOVA works entirely offline with this model. Adding a cloud API key later is
 optional, in Settings, and never required.
 READMETXT
 
 # ── Archive ──────────────────────────────────────────────────────────
 
 STAMP="$(date +%Y%m%d)"
-ARCHIVE="$BUILD_DIR/aria-bundle-$MODEL_ID-$PLATFORM-$(uname -m)-$STAMP.tar.gz"
+ARCHIVE="$BUILD_DIR/nova-bundle-$MODEL_ID-$PLATFORM-$(uname -m)-$STAMP.tar.gz"
 
 say "Compressing (this takes a few minutes)"
 # The model is already compressed, so -1 saves considerable time for a
 # negligible difference in size.
-tar -C "$BUILD_DIR" -czf "$ARCHIVE" --options='compression-level=1' aria-bundle 2>/dev/null \
-  || GZIP=-1 tar -C "$BUILD_DIR" -czf "$ARCHIVE" aria-bundle
+tar -C "$BUILD_DIR" -czf "$ARCHIVE" --options='compression-level=1' nova-bundle 2>/dev/null \
+  || GZIP=-1 tar -C "$BUILD_DIR" -czf "$ARCHIVE" nova-bundle
 
 rm -rf "$STAGE"
 
@@ -276,4 +276,4 @@ echo "     $(du -h "$ARCHIVE" | cut -f1)"
 echo
 say "To share it:"
 echo "     tar -xzf $(basename "$ARCHIVE")"
-echo "     cd aria-bundle && ./install-bundle.sh"
+echo "     cd nova-bundle && ./install-bundle.sh"

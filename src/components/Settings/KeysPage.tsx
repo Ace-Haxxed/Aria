@@ -1,5 +1,5 @@
 /**
- * Every credential ARIA holds, on one page.
+ * Every credential NOVA holds, on one page.
  *
  * Provider tabs down the side, one field for the selected provider. Pasting a
  * key validates it and saves it in the same gesture — there is no separate
@@ -248,7 +248,7 @@ export function KeysPage() {
           {tab === 'openrouter' && freeModelsState === 'failed' && (
             <p className="text-[11px] text-risk-medium">
               Could not reach OpenRouter to list its free models. Reopen this page to try
-              again, or type an id from openrouter.ai/models — ARIA does not suggest one,
+              again, or type an id from openrouter.ai/models — NOVA does not suggest one,
               because the free catalogue rotates and any id named here would go stale.
             </p>
           )}

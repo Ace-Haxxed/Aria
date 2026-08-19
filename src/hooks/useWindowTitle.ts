@@ -1,15 +1,15 @@
 /**
- * Keep the window title describing what ARIA is doing.
+ * Keep the window title describing what NOVA is doing.
  *
  * The title is visible in the taskbar and the window switcher, which is
  * precisely where someone looks when they have switched away and want to know
- * whether a long task has finished. A static "ARIA" wastes that.
+ * whether a long task has finished. A static "NOVA" wastes that.
  */
 import { useEffect } from 'react';
 import { useConversation } from '@/store/conversation';
 import { isTauri } from '@/platform';
 
-const BASE = 'ARIA';
+const BASE = 'NOVA';
 /** Long titles get truncated by the window manager anyway. */
 const MAX_TASK_CHARS = 40;
 

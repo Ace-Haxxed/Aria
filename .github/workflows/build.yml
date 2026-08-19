@@ -98,7 +98,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: aria-linux
+          name: nova-linux
           retention-days: 14
           if-no-files-found: error
           path: |
@@ -151,7 +151,7 @@ jobs:
           # Repackage the built binary rather than compiling twice: makepkg's
           # build() would redo the whole Rust build for no benefit.
           cat > /tmp/pkg/PKGBUILD <<EOF
-          pkgname=aria
+          pkgname=nova
           pkgver=${VERSION}
           pkgrel=1
           pkgdesc="AI assistant with full device control"
@@ -172,17 +172,17 @@ jobs:
           options=('!strip')
 
           package() {
-            install -Dm755 "\${GITHUB_WORKSPACE}/src-tauri/target/release/aria" \\
-              "\${pkgdir}/usr/bin/aria"
+            install -Dm755 "\${GITHUB_WORKSPACE}/src-tauri/target/release/nova" \\
+              "\${pkgdir}/usr/bin/nova"
             install -Dm644 "\${GITHUB_WORKSPACE}/src-tauri/icons/512x512.png" \\
-              "\${pkgdir}/usr/share/icons/hicolor/512x512/apps/aria.png"
+              "\${pkgdir}/usr/share/icons/hicolor/512x512/apps/nova.png"
 
-            install -Dm644 /dev/stdin "\${pkgdir}/usr/share/applications/aria.desktop" <<DESKTOP
+            install -Dm644 /dev/stdin "\${pkgdir}/usr/share/applications/nova.desktop" <<DESKTOP
           [Desktop Entry]
-          Name=ARIA
+          Name=NOVA
           Comment=AI assistant with full device control
-          Exec=aria
-          Icon=aria
+          Exec=nova
+          Icon=nova
           Terminal=false
           Type=Application
           Categories=Utility;
@@ -195,7 +195,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: aria-arch
+          name: nova-arch
           retention-days: 14
           if-no-files-found: error
           path: /tmp/pkg/*.pkg.tar.zst

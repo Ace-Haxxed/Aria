@@ -5,13 +5,13 @@
 //! unavailable. Capture uses scrot/maim, windows use wmctrl.
 
 use super::{parse_combo, resolve_window, MouseButton, Point, Region, ScrollDirection, WindowInfo};
-use crate::util::{first_available, has, run, run_owned, JResult, AriaError};
+use crate::util::{first_available, has, run, run_owned, JResult, NovaError};
 
 fn require(tool: &str, purpose: &str) -> JResult<()> {
     if has(tool) {
         Ok(())
     } else {
-        Err(AriaError::missing(
+        Err(NovaError::missing(
             tool,
             &format!("{purpose} needs it. Install with your package manager (e.g. `sudo pacman -S {tool}` / `sudo apt install {tool}`)."),
         ))
@@ -28,7 +28,7 @@ pub async fn screenshot(region: Option<Region>) -> JResult<Vec<u8>> {
     // the lossy UTF-8 conversion the generic command runner applies.
     let tool = first_available(&["scrot", "maim", "gnome-screenshot", "spectacle", "import"])
         .ok_or_else(|| {
-            AriaError::missing(
+            NovaError::missing(
                 "scrot",
                 "Screen capture on X11 needs one of: scrot, maim, gnome-screenshot, spectacle.",
             )
@@ -63,7 +63,7 @@ pub async fn screenshot(region: Option<Region>) -> JResult<Vec<u8>> {
 
     let out = run_owned(&tool, &args).await?;
     if !out.ok() && !path.exists() {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "{tool} failed: {}",
             out.stderr.trim()
         )));
@@ -245,7 +245,7 @@ pub async fn release_key(key: &str) -> JResult<()> {
 
 pub async fn list_windows() -> JResult<Vec<WindowInfo>> {
     if !has("wmctrl") && !has("xdotool") {
-        return Err(AriaError::missing(
+        return Err(NovaError::missing(
             "wmctrl",
             "Window management on X11 needs wmctrl (or xdotool).",
         ));
@@ -338,7 +338,7 @@ async fn target_id(target: &str) -> JResult<String> {
     let windows = list_windows().await?;
     resolve_window(&windows, target)
         .map(|w| w.id.clone())
-        .ok_or_else(|| AriaError::msg(format!("no window matching `{target}`")))
+        .ok_or_else(|| NovaError::msg(format!("no window matching `{target}`")))
 }
 
 pub async fn focus_window(target: &str) -> JResult<()> {

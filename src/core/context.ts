@@ -142,7 +142,7 @@ async function summarise(
 ): Promise<string> {
   const transcript = older
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => `${m.role === 'user' ? 'User' : 'ARIA'}: ${m.content.slice(0, 600)}`)
+    .map((m) => `${m.role === 'user' ? 'User' : 'NOVA'}: ${m.content.slice(0, 600)}`)
     .join('\n')
     .slice(0, 8_000);
 

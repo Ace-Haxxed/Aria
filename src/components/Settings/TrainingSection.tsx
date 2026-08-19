@@ -36,7 +36,7 @@ export function TrainingSection() {
     setBusy(true);
     try {
       const stamp = new Date().toISOString().slice(0, 10);
-      const path = await exportTo(`~/Downloads/aria-training-${stamp}.jsonl`);
+      const path = await exportTo(`~/Downloads/nova-training-${stamp}.jsonl`);
       toast.success('Training data exported', path);
     } catch (e) {
       toast.error('Could not export the training data', humanise(e));
@@ -114,12 +114,12 @@ export function TrainingSection() {
         <p className="text-xs leading-relaxed text-muted-foreground">
           {stats?.ready
             ? 'You have enough conversations for a useful fine-tune.'
-            : `About ${target.toLocaleString()} conversations gives a fine-tune enough to learn from. Keep using ARIA and this fills up on its own.`}
+            : `About ${target.toLocaleString()} conversations gives a fine-tune enough to learn from. Keep using NOVA and this fills up on its own.`}
         </p>
 
         {stats && (stats.ratedGood > 0 || stats.ratedBad > 0) && (
           <p className="text-xs text-muted-foreground">
-            <span className="text-aria-acting">{stats.ratedGood} rated helpful</span>
+            <span className="text-nova-acting">{stats.ratedGood} rated helpful</span>
             {' · '}
             <span className="text-risk-high">{stats.ratedBad} rated unhelpful</span>
             {' — ratings let a fine-tune weight the good answers more heavily.'}
@@ -175,7 +175,7 @@ export function TrainingSection() {
 
       {stats?.ready && (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Fine-tuning runs outside ARIA, on your own machine or a rented GPU. The guide walks
+          Fine-tuning runs outside NOVA, on your own machine or a rented GPU. The guide walks
           through training Llama 3.1 8B on an exported JSONL file with Unsloth; the result is a
           model you can run in Ollama and select here.
         </p>

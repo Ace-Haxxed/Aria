@@ -6,7 +6,7 @@
 
 #[tokio::main]
 async fn main() {
-    match aria_lib::commands::audio::test_microphone().await {
+    match nova_lib::commands::audio::test_microphone().await {
         Ok(t) => {
             println!(
                 "microphone OK: {} ({} Hz, {} ch)",

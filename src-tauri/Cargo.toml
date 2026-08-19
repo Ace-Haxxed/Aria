@@ -1,14 +1,14 @@
 [package]
-name = "aria"
+name = "nova"
 version = "1.0.0"
-description = "ARIA — Adaptive Reasoning and Intelligence Assistant"
-authors = ["ARIA contributors"]
+description = "NOVA — Neural Operative Virtual Assistant"
+authors = ["NOVA contributors"]
 repository = "https://github.com/Ace-Haxxed/Aria"
 edition = "2021"
 rust-version = "1.82"
 
 [lib]
-name = "aria_lib"
+name = "nova_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

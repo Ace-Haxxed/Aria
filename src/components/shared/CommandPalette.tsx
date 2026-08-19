@@ -191,7 +191,7 @@ export function CommandPalette({ onOpenSettings }: { onOpenSettings: () => void 
               />
             </div>
 
-            <div className="aria-scroll max-h-80 overflow-y-auto p-1.5">
+            <div className="nova-scroll max-h-80 overflow-y-auto p-1.5">
               {results.length === 0 ? (
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                   Nothing matches “{query}”.

@@ -1,5 +1,5 @@
 /**
- * The ARIA orb.
+ * The NOVA orb.
  *
  * Each agent state gets a distinct motion signature so the current state is
  * readable from across the room, without needing to read any text:
@@ -96,10 +96,10 @@ function readPalette(): Record<AgentState, Hsl> {
     // The idle colour is composed from the user's accent hue, so it is built
     // from the three parts rather than parsed from an unresolved `var()`.
     idle: [num('--accent-h', 197), num('--accent-s', 94), num('--accent-l', 55)],
-    listening: parse('--aria-listening', FALLBACK.listening),
-    thinking: parse('--aria-thinking', FALLBACK.thinking),
-    speaking: parse('--aria-speaking', FALLBACK.speaking),
-    acting: parse('--aria-acting', FALLBACK.acting),
+    listening: parse('--nova-listening', FALLBACK.listening),
+    thinking: parse('--nova-thinking', FALLBACK.thinking),
+    speaking: parse('--nova-speaking', FALLBACK.speaking),
+    acting: parse('--nova-acting', FALLBACK.acting),
   };
 }
 

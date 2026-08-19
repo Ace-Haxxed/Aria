@@ -22,7 +22,7 @@ pub mod wakeword;
 pub mod windows;
 
 use crate::platform::detect::{self, dependency_checks, DependencyCheck, PlatformInfo};
-use crate::util::{run, JResult, AriaError};
+use crate::util::{run, JResult, NovaError};
 
 #[tauri::command]
 pub async fn get_platform_info() -> JResult<PlatformInfo> {
@@ -41,21 +41,21 @@ pub async fn check_dependencies() -> JResult<Vec<DependencyCheck>> {
 ///
 /// Backs the wizard's one-click install button. The privilege prompt is the
 /// desktop's own polkit dialog (see `commands::linux`), so the user still
-/// confirms — ARIA never acquires root silently.
+/// confirms — NOVA never acquires root silently.
 #[tauri::command]
 pub async fn install_dependency(name: String) -> JResult<String> {
     let checks = dependency_checks(&detect::refreshed(crate::platform::info()));
     let check = checks
         .iter()
         .find(|c| c.name == name)
-        .ok_or_else(|| AriaError::msg(format!("`{name}` is not a dependency ARIA knows.")))?;
+        .ok_or_else(|| NovaError::msg(format!("`{name}` is not a dependency NOVA knows.")))?;
 
     if check.present {
         return Ok(format!("{name} is already installed."));
     }
 
     let package = check.package.clone().ok_or_else(|| {
-        AriaError::msg(format!(
+        NovaError::msg(format!(
             "{name} cannot be installed automatically on this system. Install it with: {}",
             check.install_hint
         ))
@@ -73,7 +73,7 @@ pub async fn install_dependency(name: String) -> JResult<String> {
         .any(|c| c.name == name && c.present);
 
     if !installed {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "{package} installed, but {name} is still not available. You may need to \
              log out and back in, or install it manually with: {}",
             check.install_hint

@@ -2,7 +2,7 @@
 //!
 //! WebKitGTK cannot serve `getUserMedia` on a Wayland session — the webview has
 //! no route to PipeWire and the request fails before any permission prompt is
-//! shown — so nothing in ARIA is allowed to ask the browser for audio. Every
+//! shown — so nothing in NOVA is allowed to ask the browser for audio. Every
 //! sample comes from cpal instead: ALSA on Linux, WASAPI on Windows, CoreAudio
 //! on macOS. That is also why this path needs no portal and no user setup.
 //!
@@ -12,7 +12,7 @@
 //! whisper wants as it arrives, so `stop_capture` only has to wrap the buffer
 //! in a WAV header.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use base64::Engine;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
@@ -186,13 +186,13 @@ fn default_input() -> JResult<(cpal::Device, cpal::SupportedStreamConfig)> {
     }
 
     let device = host.default_input_device().ok_or_else(|| {
-        AriaError::msg(
+        NovaError::msg(
             "No microphone was found. Plug one in, or pick an input device in your \
              system sound settings, then try again.",
         )
     })?;
     let config = device.default_input_config().map_err(|e| {
-        AriaError::msg(format!(
+        NovaError::msg(format!(
             "The default microphone could not be opened: {e}. Another application may \
              have it open exclusively."
         ))
@@ -275,13 +275,13 @@ fn open_stream(
         cpal::SampleFormat::I16 => build_stream::<i16>(device, &config, on_block, on_error),
         cpal::SampleFormat::U16 => build_stream::<u16>(device, &config, on_block, on_error),
         other => {
-            return Err(AriaError::msg(format!(
+            return Err(NovaError::msg(format!(
                 "The microphone reports an unsupported sample format ({other:?})."
             )))
         }
     };
 
-    stream.map_err(|e| AriaError::msg(format!("The microphone could not be opened: {e}")))
+    stream.map_err(|e| NovaError::msg(format!("The microphone could not be opened: {e}")))
 }
 
 /* ── Commands ───────────────────────────────────────────────────── */
@@ -333,7 +333,7 @@ pub async fn test_microphone() -> JResult<MicTest> {
 
         stream
             .play()
-            .map_err(|e| AriaError::msg(format!("The microphone could not be started: {e}")))?;
+            .map_err(|e| NovaError::msg(format!("The microphone could not be started: {e}")))?;
 
         let verdict = rx.recv_timeout(FIRST_CHUNK_TIMEOUT);
         drop(stream);
@@ -345,8 +345,8 @@ pub async fn test_microphone() -> JResult<MicTest> {
                 sample_rate,
                 channels,
             }),
-            Ok(Err(e)) => Err(AriaError::msg(format!("The microphone reported: {e}"))),
-            Err(_) => Err(AriaError::msg(format!(
+            Ok(Err(e)) => Err(NovaError::msg(format!("The microphone reported: {e}"))),
+            Err(_) => Err(NovaError::msg(format!(
                 "`{name}` opened but produced no audio. Check that it is not muted \
                  in your system sound settings."
             ))),
@@ -357,7 +357,7 @@ pub async fn test_microphone() -> JResult<MicTest> {
     // leave the wake word deaf.
     super::wakeword::resume();
 
-    outcome.map_err(|e| AriaError::msg(format!("microphone test did not finish: {e}")))?
+    outcome.map_err(|e| NovaError::msg(format!("microphone test did not finish: {e}")))?
 }
 
 /// Begin recording. Audio streams to the frontend as `mic-chunk` (base64 PCM-16
@@ -386,7 +386,7 @@ pub async fn start_capture(app: AppHandle, silence_timeout_ms: Option<u32>) -> J
             let samples = samples.clone();
 
             std::thread::Builder::new()
-                .name("aria-mic".into())
+                .name("nova-mic".into())
                 .spawn(move || {
                     // The thread owns the stream for its entire life: cpal
                     // streams are !Send, so it can never be handed back.
@@ -457,7 +457,7 @@ pub async fn start_capture(app: AppHandle, silence_timeout_ms: Option<u32>) -> J
                         )
                         .and_then(|s| {
                             s.play().map_err(|e| {
-                                AriaError::msg(format!("the microphone did not start: {e}"))
+                                NovaError::msg(format!("the microphone did not start: {e}"))
                             })?;
                             Ok(s)
                         })
@@ -484,17 +484,17 @@ pub async fn start_capture(app: AppHandle, silence_timeout_ms: Option<u32>) -> J
                     drop(stream);
                     let _ = finished_tx.send(());
                 })
-                .map_err(|e| AriaError::msg(format!("could not start the audio thread: {e}")))?;
+                .map_err(|e| NovaError::msg(format!("could not start the audio thread: {e}")))?;
         }
 
         // Surface a failure to open the device as a failed `start_capture`
         // rather than as silence the user only notices on release.
         match ready_rx.recv_timeout(FIRST_CHUNK_TIMEOUT) {
             Ok(Ok(())) => {}
-            Ok(Err(e)) => return Err(AriaError::msg(e)),
+            Ok(Err(e)) => return Err(NovaError::msg(e)),
             Err(_) => {
                 running.store(false, Ordering::Relaxed);
-                return Err(AriaError::msg(
+                return Err(NovaError::msg(
                     "The microphone did not respond in time. Another application may be \
                      using it exclusively.",
                 ));
@@ -509,7 +509,7 @@ pub async fn start_capture(app: AppHandle, silence_timeout_ms: Option<u32>) -> J
         Ok(())
     })
     .await
-    .map_err(|e| AriaError::msg(format!("capture did not start: {e}")))?
+    .map_err(|e| NovaError::msg(format!("capture did not start: {e}")))?
 }
 
 /// Signal the capture thread to stop and wait for it to release the device.
@@ -540,7 +540,7 @@ fn stop_session() -> Option<Vec<f32>> {
 pub async fn stop_capture() -> JResult<String> {
     let samples = tokio::task::spawn_blocking(stop_session)
         .await
-        .map_err(|e| AriaError::msg(format!("capture did not stop cleanly: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("capture did not stop cleanly: {e}")))?;
 
     let samples = samples.unwrap_or_default();
     Ok(base64::engine::general_purpose::STANDARD.encode(encode_wav(&samples)))

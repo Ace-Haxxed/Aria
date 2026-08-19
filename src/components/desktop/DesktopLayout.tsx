@@ -39,11 +39,11 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
 
   const voice = useVoice(
     useCallback((text: string) => {
-      // "Goodbye ARIA" dismisses rather than being sent as a question. A
+      // "Goodbye NOVA" dismisses rather than being sent as a question. A
       // wake word needs a matching way out, or the only way to stop talking to
-      // ARIA is to reach for the mouse.
+      // NOVA is to reach for the mouse.
       const settings = useSettings.getState().settings;
-      if (settings.goodbyeMinimizes && /\bgood ?bye,? aria\b/i.test(text)) {
+      if (settings.goodbyeMinimizes && /\bgood ?bye,? nova\b/i.test(text)) {
         if (isTauri) void import('@/platform/desktop').then((m) => m.desktop.toggleWindow());
         return;
       }
@@ -56,7 +56,7 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
 
   const agent = useAgent(voice.speak, voice.speakSentence);
 
-  // `aria --demo` drives the same send path a typed message uses, so the demo
+  // `nova --demo` drives the same send path a typed message uses, so the demo
   // exercises the real agent loop rather than a parallel one that could drift
   // out of sync with it.
   const demoSend = useCallback((text: string) => void agent.send(text), [agent]);
@@ -230,7 +230,7 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
         <main className="relative flex min-w-0 flex-1 flex-col">
           {empty ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
-              <Hint id="talk" text={'Say "Hey ARIA" or tap here to talk'} placement="right">
+              <Hint id="talk" text={'Say "Hey NOVA" or tap here to talk'} placement="right">
                 <Orb
                   state={agentState}
                   level={voice.level}
@@ -251,7 +251,7 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
             </div>
           ) : (
             <>
-              <div ref={scrollRef} className="aria-scroll relative min-h-0 flex-1 overflow-y-auto">
+              <div ref={scrollRef} className="nova-scroll relative min-h-0 flex-1 overflow-y-auto">
                 <MessageList
                   messages={conversation.messages}
                   streaming={streaming}
@@ -314,7 +314,7 @@ export function DesktopLayout({ onOpenSettings }: DesktopLayoutProps) {
           <ScreenPreview />
         </main>
 
-        <Hint id="actions" text="Watch what ARIA is doing in real time" placement="left" delayMs={1000}>
+        <Hint id="actions" text="Watch what NOVA is doing in real time" placement="left" delayMs={1000}>
           <ActionLog />
         </Hint>
       </div>

@@ -6,7 +6,7 @@
 
 #[tokio::main]
 async fn main() {
-    let readiness = aria_lib::commands::finetune::check_finetune_support()
+    let readiness = nova_lib::commands::finetune::check_finetune_support()
         .await
         .expect("check should not error");
 
@@ -31,7 +31,7 @@ async fn main() {
         "no version reported — stdout was not parsed"
     );
 
-    let adapters = aria_lib::commands::finetune::list_adapters()
+    let adapters = nova_lib::commands::finetune::list_adapters()
         .await
         .expect("listing adapters should not error");
     println!("\nadapters trained : {}", adapters.len());

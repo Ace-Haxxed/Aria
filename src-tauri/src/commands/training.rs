@@ -10,7 +10,7 @@
 //! if the app is killed mid-write, every complete line before it is still
 //! valid, which a single large JSON array would not be.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::PathBuf;
@@ -61,7 +61,7 @@ fn write_all(records: &[TrainingRecord]) -> JResult<()> {
     let path = dataset_path()?;
     let mut out = String::new();
     for record in records {
-        out.push_str(&serde_json::to_string(record).map_err(|e| AriaError::msg(e.to_string()))?);
+        out.push_str(&serde_json::to_string(record).map_err(|e| NovaError::msg(e.to_string()))?);
         out.push('\n');
     }
     // Write beside the target and rename, so an interrupted rewrite cannot
@@ -82,7 +82,7 @@ pub async fn training_append(record: TrainingRecord) -> JResult<()> {
     }
 
     let path = dataset_path()?;
-    let line = serde_json::to_string(&record).map_err(|e| AriaError::msg(e.to_string()))?;
+    let line = serde_json::to_string(&record).map_err(|e| NovaError::msg(e.to_string()))?;
 
     let mut file = std::fs::OpenOptions::new()
         .create(true)
@@ -145,7 +145,7 @@ pub async fn training_rate(id: String, score: u8, note: Option<String>) -> JResu
 pub async fn training_export(destination: String) -> JResult<String> {
     let source = dataset_path()?;
     if !source.exists() {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "There is nothing to export yet — no conversations have been saved.",
         ));
     }
@@ -166,7 +166,7 @@ pub async fn training_clear() -> JResult<()> {
         // To the trash, not unlinked: this is the user's data and a mis-click
         // should be recoverable.
         trash::delete(&path).map_err(|e| {
-            AriaError::msg(format!("Could not remove the training data: {e}"))
+            NovaError::msg(format!("Could not remove the training data: {e}"))
         })?;
     }
     Ok(())

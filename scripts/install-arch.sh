@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install everything ARIA needs on Arch Linux (and derivatives: Manjaro,
+# Install everything NOVA needs on Arch Linux (and derivatives: Manjaro,
 # EndeavourOS, CachyOS).
 #
 # Usage: bash scripts/install-arch.sh [--no-optional] [--build]
@@ -76,14 +76,14 @@ if [ "$SESSION" = "wayland" ]; then
   if [ ! -e /dev/uinput ] || ! [ -r /dev/uinput ]; then
     say "Granting access to /dev/uinput"
     echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' \
-      | sudo tee /etc/udev/rules.d/80-aria-uinput.rules >/dev/null
+      | sudo tee /etc/udev/rules.d/80-nova-uinput.rules >/dev/null
     sudo usermod -aG input "$USER"
     sudo udevadm control --reload-rules && sudo udevadm trigger
     warn "log out and back in for the 'input' group to take effect"
   fi
 fi
 
-# ── Ollama, so ARIA works offline out of the box ───────────────────
+# ── Ollama, so NOVA works offline out of the box ───────────────────
 if [ "$INSTALL_OPTIONAL" -eq 1 ] && ! command -v ollama >/dev/null 2>&1; then
   say "Installing Ollama (local LLM backend)"
   if sudo pacman -S --needed --noconfirm ollama 2>/dev/null; then
@@ -103,12 +103,12 @@ if [ -f "$REPO_ROOT/package.json" ]; then
   ok "npm dependencies installed"
 
   if [ "$DO_BUILD" -eq 1 ]; then
-    say "Building ARIA (this takes a few minutes on a first build)"
+    say "Building NOVA (this takes a few minutes on a first build)"
     (cd "$REPO_ROOT" && npm run desktop:build)
     ok "bundles are in src-tauri/target/release/bundle/"
   fi
 fi
 
-printf '\n%s%sARIA is ready.%s\n' "$GREEN" "$BOLD" "$RESET"
+printf '\n%s%sNOVA is ready.%s\n' "$GREEN" "$BOLD" "$RESET"
 printf '  %sStart it with:%s npm run desktop:dev\n' "$DIM" "$RESET"
 printf '  %sOffline voice:%s bash scripts/download-models.sh\n' "$DIM" "$RESET"

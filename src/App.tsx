@@ -68,8 +68,8 @@ export default function App() {
     void load();
   }, [load]);
 
-  // `aria --keys` opens straight to the key settings. The flag is read from
-  // the process ARIA was launched with, so this only fires on that launch.
+  // `nova --keys` opens straight to the key settings. The flag is read from
+  // the process NOVA was launched with, so this only fires on that launch.
   useEffect(() => {
     if (!isTauri) return;
     void (async () => {
@@ -142,8 +142,8 @@ export default function App() {
   // both reach it without threading a callback through the tree.
   useEffect(() => {
     const open = () => setSettingsOpen(true);
-    window.addEventListener('aria:open-settings', open);
-    return () => window.removeEventListener('aria:open-settings', open);
+    window.addEventListener('nova:open-settings', open);
+    return () => window.removeEventListener('nova:open-settings', open);
   }, []);
 
   if (!loaded) {

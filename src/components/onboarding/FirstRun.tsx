@@ -46,7 +46,7 @@ export function FirstRun({ onComplete }: { onComplete: () => void }) {
   }, [step, brainReady]);
 
   return (
-    <div className="aria-grid-bg fixed inset-0 z-50 flex flex-col bg-background">
+    <div className="nova-grid-bg fixed inset-0 z-50 flex flex-col bg-background">
       <div
         className="flex shrink-0 gap-1.5 px-6 pb-2"
         style={{ paddingTop: 'calc(var(--safe-top) + 1.5rem)' }}
@@ -62,7 +62,7 @@ export function FirstRun({ onComplete }: { onComplete: () => void }) {
         ))}
       </div>
 
-      <div className="aria-scroll min-h-0 flex-1 overflow-y-auto px-6 py-6">
+      <div className="nova-scroll min-h-0 flex-1 overflow-y-auto px-6 py-6">
         <div className="mx-auto max-w-xl">
           <AnimatePresence mode="wait">
             <motion.div
@@ -100,7 +100,7 @@ export function FirstRun({ onComplete }: { onComplete: () => void }) {
 
           {step === 'check' ? (
             <Button onClick={finish} className="gap-1.5">
-              Enter ARIA
+              Enter NOVA
               <ArrowRight className="h-4 w-4" />
             </Button>
           ) : (
@@ -145,7 +145,7 @@ function Welcome({ onStart }: { onStart: () => void }) {
           transition={{ duration: 0.15, delay: 0.28 }}
           className="text-sm leading-relaxed text-muted-foreground"
         >
-          ARIA runs locally or in the cloud — you choose.
+          NOVA runs locally or in the cloud — you choose.
         </motion.p>
       </div>
 

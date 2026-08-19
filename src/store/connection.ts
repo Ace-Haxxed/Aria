@@ -1,5 +1,5 @@
 /**
- * Whether ARIA can currently reach a model, and getting it there if not.
+ * Whether NOVA can currently reach a model, and getting it there if not.
  *
  * Runs in the background on every launch and never blocks: the window is
  * interactive immediately and the status line fills in when the answer
@@ -111,7 +111,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
 
         // Load the weights now rather than on the first message. Ollama
         // unloads after a few minutes idle, and the reload it then performs is
-        // several seconds the user experiences as ARIA being slow.
+        // several seconds the user experiences as NOVA being slow.
         if (settings.modelWarmup) {
           void desktop.warmupModel(model, llm.baseUrl || undefined).catch(() => {});
         }

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * ARIA is dark-theme only by design. Every colour in the app resolves through
+ * NOVA is dark-theme only by design. Every colour in the app resolves through
  * one of these variables — nothing downstream hardcodes a hex or rgb value.
  * The accent picker in Settings rewrites --accent-h/s/l at runtime, and every
  * derived colour follows automatically.
@@ -16,14 +16,14 @@
     /*
      * Accent hue — the single knob the accent picker turns.
      *
-     * hsl(190 100% 50%) is exactly #00d4ff, so the design palette's cyan and
-     * the existing slider are the same value. Everything cyan below is derived
-     * from these three numbers rather than restating the hex, which is what
-     * keeps the slider working across the whole redesign.
+     * hsl(205 79% 66%) is exactly #63b3ed, the NOVA blue. Everything blue
+     * below is derived from these three numbers rather than restating the
+     * hex, which is what keeps the accent slider working: move the hue and
+     * the whole interface follows, including the orb and the action log.
      */
-    --accent-h: 190;
-    --accent-s: 100%;
-    --accent-l: 50%;
+    --accent-h: 205;
+    --accent-s: 79%;
+    --accent-l: 66%;
 
     /* Deep space. hsl(220 82% 4%) is #020814. */
     --background: 220 82% 4%;
@@ -84,25 +84,36 @@
 
     --radius: 0.6rem;
 
-    /*
-     * Composed surfaces, used directly by the new chrome. Kept as complete
-     * colour values rather than bare triples because they carry alpha.
-     */
-    --bg-void: hsl(var(--background));
-    --bg-surface: hsl(var(--card) / 0.85);
-    --bg-glass: hsl(0 0% 100% / 0.03);
-    --cyan-primary: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
-    --cyan-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6);
-    --text-secondary: hsl(var(--foreground) / 0.5);
-    --text-dim: hsl(var(--foreground) / 0.25);
-
     /* Agent state colours — drive the orb, status text and the action log. */
-    --aria-idle: var(--accent-h) var(--accent-s) var(--accent-l);
-    --aria-listening: var(--accent-h) var(--accent-s) var(--accent-l);
-    --aria-thinking: var(--accent-h) var(--accent-s) var(--accent-l);
-    --aria-speaking: var(--accent-purple);
-    --aria-acting: var(--success);
-    --aria-grid: var(--accent-h) 60% 50%;
+    --nova-idle: var(--accent-h) var(--accent-s) var(--accent-l);
+    --nova-listening: var(--accent-h) var(--accent-s) var(--accent-l);
+    --nova-thinking: var(--accent-h) var(--accent-s) var(--accent-l);
+    --nova-speaking: var(--accent-purple);
+    --nova-acting: var(--success);
+    --nova-grid: var(--accent-h) 60% 50%;
+
+    /*
+     * The palette as the design spec states it.
+     *
+     * These are literal values, not derived, because the spec names them —
+     * but every one that should follow the accent slider is expressed
+     * through --accent-*, so the two systems cannot drift apart.
+     */
+    --bg-void: #04080f;
+    --bg-surface: rgba(6, 12, 28, 0.9);
+    --bg-glass: rgba(255, 255, 255, 0.03);
+    --border-subtle: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.08);
+    --border-glow: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.4);
+    --nova-primary: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+    --nova-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6);
+    --text-primary: #eef2ff;
+    --text-secondary: rgba(238, 242, 255, 0.55);
+    --text-dim: rgba(238, 242, 255, 0.25);
+
+    /* Motion budget. Interactions are near-instant, transitions are
+     * noticeable, ambient motion is slow enough to ignore. */
+    --t-interaction: 120ms;
+    --t-transition: 500ms;
 
     /* Risk levels in the action log. */
     --risk-low: var(--success);
@@ -151,7 +162,7 @@
  * is streaming.
  * ══════════════════════════════════════════════════════════════════ */
 
-.aria-space {
+.nova-space {
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -161,7 +172,7 @@
 }
 
 /* Deep space: the void colour at the centre falling off to black. */
-.aria-space-void {
+.nova-space-void {
   position: absolute;
   inset: 0;
   background: radial-gradient(
@@ -172,140 +183,103 @@
   );
 }
 
-/* Perspective grid receding towards the centre. Two skewed gradient planes
- * meeting at the horizon — an SVG would be heavier and no sharper. */
-.aria-space-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(
-      to right,
-      hsl(var(--aria-grid)) 0 1px,
-      transparent 1px 80px
-    ),
-    repeating-linear-gradient(
-      to bottom,
-      hsl(var(--aria-grid)) 0 1px,
-      transparent 1px 80px
-    );
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 0%, transparent 75%);
-  /* Was a 4s opacity pulse between 0.03 and 0.055. Animating opacity on a
-     full-screen masked gradient repaints it every frame, and the difference
-     is not perceptible — so it is now a static value. */
-  opacity: 0.04;
-}
-
-/* One large blurred ellipse drifting on a 30s loop. Kept under 6% opacity:
- * its job is to stop the backdrop reading as flat, not to be noticed. */
-.aria-space-aurora {
-  position: absolute;
-  top: -20%;
-  left: -20%;
-  width: 70%;
-  height: 70%;
-  border-radius: 50%;
-  filter: blur(90px);
-  background: radial-gradient(
-    circle,
-    hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5) 0%,
-    hsl(var(--accent-purple) / 0.35) 55%,
-    transparent 70%
-  );
-  opacity: 0.06;
-  will-change: transform;
-  animation: aria-aurora-drift 30s ease-in-out infinite;
-}
-
-@keyframes aria-aurora-drift {
-  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.03; }
-  25%  { transform: translate3d(60vw, 15vh, 0) scale(1.15); opacity: 0.06; }
-  50%  { transform: translate3d(90vw, 55vh, 0) scale(1); opacity: 0.045; }
-  75%  { transform: translate3d(30vw, 40vh, 0) scale(1.1); opacity: 0.06; }
-  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.03; }
-}
-
-.aria-space-stars {
+.nova-space-stars {
   position: absolute;
   inset: 0;
 }
 
-.aria-star {
+.nova-star {
   position: absolute;
   border-radius: 50%;
-  background: hsl(var(--foreground));
-  opacity: 0.3;
-  animation-name: aria-twinkle;
+  background: var(--text-primary);
+  opacity: 0.2;
+  animation-name: nova-twinkle;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
 
-@keyframes aria-twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: var(--star-peak, 0.8); }
+@keyframes nova-twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: var(--star-peak, 0.6); }
+}
+
+/* Grain, to stop a near-black gradient banding on an OLED panel. The filter
+ * is inlined as a data URI: no request, no file that can go missing, and it
+ * resolves at whatever density the display has. */
+.nova-space-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Ambient motion is the first thing to go when motion is unwelcome. The
  * layers stay — the depth is part of the design — they simply hold still. */
 @media (prefers-reduced-motion: reduce) {
-  .aria-space-aurora,
-  .aria-space-grid,
-  .aria-star {
+  .nova-space-aurora,
+  .nova-star {
     animation: none;
   }
 }
 
 @layer components {
   /* Faint hex/grid backdrop used behind the orb stage. */
-  .aria-grid-bg {
+  .nova-grid-bg {
     background-image:
-      linear-gradient(hsl(var(--aria-grid) / 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--aria-grid) / 0.05) 1px, transparent 1px);
+      linear-gradient(hsl(var(--nova-grid) / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--nova-grid) / 0.05) 1px, transparent 1px);
     background-size: 44px 44px;
   }
 
   /* Glass panel used by the sidebar, action log and cards. */
-  .aria-panel {
+  .nova-panel {
     @apply border border-border/70 bg-card/60 backdrop-blur-xl;
   }
 
 
   /* A hairline cyan scrollbar. Deliberately almost invisible until used —
    * a scrollbar is a position readout, not a control anyone aims for here. */
-  .aria-scroll {
+  .nova-scroll {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.2) transparent;
   }
-  .aria-scroll::-webkit-scrollbar {
+  .nova-scroll::-webkit-scrollbar {
     width: 2px;
     height: 2px;
   }
-  .aria-scroll::-webkit-scrollbar-track {
+  .nova-scroll::-webkit-scrollbar-track {
     background: transparent;
   }
-  .aria-scroll::-webkit-scrollbar-thumb {
+  .nova-scroll::-webkit-scrollbar-thumb {
     background-color: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.2);
     border-radius: 9999px;
   }
-  .aria-scroll::-webkit-scrollbar-thumb:hover {
+  .nova-scroll::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
   }
 
   /* The composer's placeholder: dim and italic, so an empty box reads as a
    * prompt rather than as content. */
-  .aria-composer-input::placeholder {
+  .nova-composer-input::placeholder {
     color: var(--text-dim);
     font-style: italic;
   }
 
-  .aria-composer-focused {
-    box-shadow: 0 0 0 1px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  .nova-composer-focused {
+    box-shadow: 0 0 0 3px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.08);
+  }
+
+  /* The NOVA mark. A hexagon rather than a circle, so the avatar and the
+     logo read as the same object at different sizes. */
+  .nova-hex {
+    clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   }
 
   /* Waiting on the first token. */
-  .aria-thinking-dot {
-    animation: aria-dot-bounce 1.2s var(--aria-ease) infinite;
+  .nova-thinking-dot {
+    animation: nova-dot-bounce 1.2s var(--nova-ease) infinite;
   }
-  @keyframes aria-dot-bounce {
+  @keyframes nova-dot-bounce {
     0%, 60%, 100% {
       transform: translateY(0);
       opacity: 0.35;
@@ -340,112 +314,112 @@
  * highlight.js theme: the shipped themes assume their own background and
  * would fight the surrounding bubble.
  */
-.aria-markdown > *:first-child {
+.nova-markdown > *:first-child {
   margin-top: 0;
 }
-.aria-markdown > *:last-child {
+.nova-markdown > *:last-child {
   margin-bottom: 0;
 }
-.aria-markdown p {
+.nova-markdown p {
   margin: 0.5rem 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.aria-markdown ul,
-.aria-markdown ol {
+.nova-markdown ul,
+.nova-markdown ol {
   margin: 0.5rem 0;
   padding-left: 1.25rem;
 }
-.aria-markdown ul {
+.nova-markdown ul {
   list-style: disc;
 }
-.aria-markdown ol {
+.nova-markdown ol {
   list-style: decimal;
 }
-.aria-markdown li {
+.nova-markdown li {
   margin: 0.25rem 0;
 }
-.aria-markdown h1,
-.aria-markdown h2,
-.aria-markdown h3,
-.aria-markdown h4 {
+.nova-markdown h1,
+.nova-markdown h2,
+.nova-markdown h3,
+.nova-markdown h4 {
   margin: 0.75rem 0 0.375rem;
   font-weight: 600;
   line-height: 1.3;
 }
-.aria-markdown h1 { font-size: 1.125rem; }
-.aria-markdown h2 { font-size: 1.0625rem; }
-.aria-markdown h3 { font-size: 1rem; }
-.aria-markdown blockquote {
+.nova-markdown h1 { font-size: 1.125rem; }
+.nova-markdown h2 { font-size: 1.0625rem; }
+.nova-markdown h3 { font-size: 1rem; }
+.nova-markdown blockquote {
   margin: 0.5rem 0;
   border-left: 2px solid hsl(var(--border));
   padding-left: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
-.aria-markdown hr {
+.nova-markdown hr {
   margin: 0.75rem 0;
   border-color: hsl(var(--border));
 }
 /* Inline code only — fenced blocks are styled by their <pre> wrapper. */
-.aria-markdown :not(pre) > code {
+.nova-markdown :not(pre) > code {
   border-radius: 0.25rem;
   background: hsl(var(--muted) / 0.6);
   padding: 0.1rem 0.3rem;
   font-size: 0.8125em;
 }
-.aria-markdown th,
-.aria-markdown td {
+.nova-markdown th,
+.nova-markdown td {
   border: 1px solid hsl(var(--border));
   padding: 0.3rem 0.5rem;
   text-align: left;
 }
-.aria-markdown th {
+.nova-markdown th {
   background: hsl(var(--muted) / 0.4);
   font-weight: 600;
 }
 
 /* highlight.js tokens, mapped onto the Jarvis palette. */
-.aria-markdown .hljs-comment,
-.aria-markdown .hljs-quote {
+.nova-markdown .hljs-comment,
+.nova-markdown .hljs-quote {
   color: hsl(var(--muted-foreground));
   font-style: italic;
 }
-.aria-markdown .hljs-keyword,
-.aria-markdown .hljs-selector-tag,
-.aria-markdown .hljs-literal,
-.aria-markdown .hljs-type {
-  color: hsl(var(--aria-listening));
+.nova-markdown .hljs-keyword,
+.nova-markdown .hljs-selector-tag,
+.nova-markdown .hljs-literal,
+.nova-markdown .hljs-type {
+  color: hsl(var(--nova-listening));
 }
-.aria-markdown .hljs-string,
-.aria-markdown .hljs-regexp,
-.aria-markdown .hljs-addition {
-  color: hsl(var(--aria-acting));
+.nova-markdown .hljs-string,
+.nova-markdown .hljs-regexp,
+.nova-markdown .hljs-addition {
+  color: hsl(var(--nova-acting));
 }
-.aria-markdown .hljs-number,
-.aria-markdown .hljs-symbol,
-.aria-markdown .hljs-bullet {
+.nova-markdown .hljs-number,
+.nova-markdown .hljs-symbol,
+.nova-markdown .hljs-bullet {
   color: hsl(var(--risk-medium));
 }
-.aria-markdown .hljs-title,
-.aria-markdown .hljs-section,
-.aria-markdown .hljs-function .hljs-title {
+.nova-markdown .hljs-title,
+.nova-markdown .hljs-section,
+.nova-markdown .hljs-function .hljs-title {
   color: hsl(var(--primary));
 }
-.aria-markdown .hljs-attr,
-.aria-markdown .hljs-attribute,
-.aria-markdown .hljs-variable,
-.aria-markdown .hljs-template-variable {
-  color: hsl(var(--aria-speaking));
+.nova-markdown .hljs-attr,
+.nova-markdown .hljs-attribute,
+.nova-markdown .hljs-variable,
+.nova-markdown .hljs-template-variable {
+  color: hsl(var(--nova-speaking));
 }
-.aria-markdown .hljs-built_in,
-.aria-markdown .hljs-class .hljs-title {
-  color: hsl(var(--aria-thinking));
+.nova-markdown .hljs-built_in,
+.nova-markdown .hljs-class .hljs-title {
+  color: hsl(var(--nova-thinking));
 }
-.aria-markdown .hljs-deletion {
+.nova-markdown .hljs-deletion {
   color: hsl(var(--risk-high));
 }
-.aria-markdown .hljs-emphasis { font-style: italic; }
-.aria-markdown .hljs-strong { font-weight: 600; }
+.nova-markdown .hljs-emphasis { font-style: italic; }
+.nova-markdown .hljs-strong { font-weight: 600; }
 
 
 /* ── Motion ────────────────────────────────────────────────────────
@@ -454,17 +428,17 @@
  * collection of independently tuned components.
  */
 :root {
-  --aria-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --aria-duration: 150ms;
+  --nova-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --nova-duration: 150ms;
 }
 
 
 /* Suppress animation on the very first paint. Without this the whole window
  * plays its entrance transitions as the styles resolve, which reads as a
  * flash of unstyled content rather than as an intentional animation. */
-.aria-booting *,
-.aria-booting *::before,
-.aria-booting *::after {
+.nova-booting *,
+.nova-booting *::before,
+.nova-booting *::after {
   animation-duration: 0s !important;
   transition-duration: 0s !important;
 }
@@ -498,6 +472,13 @@ body {
 
 html {
   font-size: 16px;
+}
+
+/* Base UI size. Deliberately on `body` and not on `html`: Tailwind's spacing
+ * scale is expressed in rem, so changing the root size would rescale every
+ * padding, gap and radius in the app rather than just the text. */
+body {
+  font-size: 13px;
 }
 
 /* Numbers that change in place — clocks, token counts, latencies — must not
@@ -595,7 +576,7 @@ html {
     hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.11),
     transparent
   );
-  animation: boot-sweep 2.2s var(--aria-ease) infinite;
+  animation: boot-sweep 2.2s var(--nova-ease) infinite;
 }
 
 @keyframes boot-sweep {

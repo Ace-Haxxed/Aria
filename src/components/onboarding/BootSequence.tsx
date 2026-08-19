@@ -1,7 +1,7 @@
 /**
  * The start-up sequence.
  *
- * ARIA has real work to do before it can answer: probing the model backend,
+ * NOVA has real work to do before it can answer: probing the model backend,
  * loading settings, reading conversation history. That takes a moment, and a
  * blank window during it reads as a hang. This shows what is actually
  * happening — each line appears as its step completes, so the sequence is a
@@ -86,13 +86,13 @@ function TypedLine({ label, result }: { label: string; result: string }) {
 
 /** The wordmark, one character at a time. */
 function TypedBrand() {
-  const typed = useTyped('ARIA', 320);
+  const typed = useTyped('NOVA', 320);
   return (
     <span style={{ textShadow: '0 0 18px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6)' }}>
       {typed}
       {/* Reserves the full width from the first frame, so the following lines
           do not shift sideways as the letters land. */}
-      <span className="invisible">{'ARIA'.slice(typed.length)}</span>
+      <span className="invisible">{'NOVA'.slice(typed.length)}</span>
     </span>
   );
 }
@@ -258,7 +258,7 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
                       '0 0 18px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.7)',
                   }}
                 >
-                  ARIA ONLINE
+                  NOVA ONLINE
                 </motion.div>
               ) : (
                 /* Cursor, until the last line lands. */

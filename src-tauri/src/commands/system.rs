@@ -3,7 +3,7 @@
 use crate::platform::detect::OsKind;
 use crate::state::AppState;
 use crate::util::{
-    cap_output, first_available, has, run, run_shell, CmdOutput, JResult, AriaError,
+    cap_output, first_available, has, run, run_shell, CmdOutput, JResult, NovaError,
 };
 use serde::{Deserialize, Serialize};
 use sysinfo::{Disks, ProcessesToUpdate, System};
@@ -132,7 +132,7 @@ pub async fn get_volume() -> JResult<u8> {
                     return Ok(pct);
                 }
             }
-            Err(AriaError::missing(
+            Err(NovaError::missing(
                 "pamixer",
                 "Volume control needs pamixer or pactl (PulseAudio/PipeWire).",
             ))
@@ -181,7 +181,7 @@ pub async fn set_volume(level: u8) -> JResult<()> {
                 )
                 .await?;
             } else {
-                return Err(AriaError::missing(
+                return Err(NovaError::missing(
                     "pamixer",
                     "Volume control needs pamixer or pactl.",
                 ));
@@ -196,7 +196,7 @@ pub async fn set_volume(level: u8) -> JResult<()> {
         }
         OsKind::Windows => {
             // Nudge the volume with media keys — no COM plumbing needed for a relative set.
-            return Err(AriaError::msg(
+            return Err(NovaError::msg(
                 "Setting an absolute volume level is not supported on Windows; \
                  use mute/unmute or adjust it from the system tray.",
             ));
@@ -231,7 +231,7 @@ async fn set_mute(on: bool) -> JResult<()> {
                 )
                 .await?;
             } else {
-                return Err(AriaError::missing(
+                return Err(NovaError::missing(
                     "pamixer",
                     "Muting needs pamixer or pactl.",
                 ));
@@ -245,7 +245,7 @@ async fn set_mute(on: bool) -> JResult<()> {
             .await?;
         }
         OsKind::Windows => {
-            return Err(AriaError::msg("Muting is not scriptable on Windows."));
+            return Err(NovaError::msg("Muting is not scriptable on Windows."));
         }
     }
     Ok(())
@@ -257,7 +257,7 @@ async fn set_mute(on: bool) -> JResult<()> {
 pub async fn get_brightness() -> JResult<u8> {
     if crate::platform::info().os == OsKind::Linux {
         if !has("brightnessctl") {
-            return Err(AriaError::missing(
+            return Err(NovaError::missing(
                 "brightnessctl",
                 "Brightness control needs brightnessctl.",
             ));
@@ -268,7 +268,7 @@ pub async fn get_brightness() -> JResult<u8> {
         let max: f64 = max.trimmed().parse().unwrap_or(1.0);
         return Ok(((cur / max.max(1.0)) * 100.0).round() as u8);
     }
-    Err(AriaError::msg(
+    Err(NovaError::msg(
         "Reading screen brightness is only supported on Linux.",
     ))
 }
@@ -279,7 +279,7 @@ pub async fn set_brightness(level: u8) -> JResult<()> {
     match crate::platform::info().os {
         OsKind::Linux => {
             if !has("brightnessctl") {
-                return Err(AriaError::missing(
+                return Err(NovaError::missing(
                     "brightnessctl",
                     "Brightness control needs brightnessctl.",
                 ));
@@ -332,7 +332,7 @@ pub async fn lock_screen() -> JResult<()> {
                 "gnome-screensaver-command",
             ])
             .ok_or_else(|| {
-                AriaError::missing("loginctl", "Locking needs loginctl or a screen locker.")
+                NovaError::missing("loginctl", "Locking needs loginctl or a screen locker.")
             })?;
 
             if tool == "loginctl" {
@@ -419,14 +419,14 @@ pub async fn restart(delay: Option<u32>) -> JResult<()> {
 pub async fn get_clipboard(app: AppHandle) -> JResult<String> {
     app.clipboard()
         .read_text()
-        .map_err(|e| AriaError::msg(format!("could not read the clipboard: {e}")))
+        .map_err(|e| NovaError::msg(format!("could not read the clipboard: {e}")))
 }
 
 #[tauri::command]
 pub async fn set_clipboard(app: AppHandle, text: String) -> JResult<()> {
     app.clipboard()
         .write_text(text)
-        .map_err(|e| AriaError::msg(format!("could not write the clipboard: {e}")))
+        .map_err(|e| NovaError::msg(format!("could not write the clipboard: {e}")))
 }
 
 #[tauri::command]
@@ -455,7 +455,7 @@ pub async fn send_notification(app: AppHandle, title: String, body: String) -> J
         .title(title)
         .body(body)
         .show()
-        .map_err(|e| AriaError::msg(format!("could not show notification: {e}")))
+        .map_err(|e| NovaError::msg(format!("could not show notification: {e}")))
 }
 
 /* ── Processes ──────────────────────────────────────────────────── */
@@ -500,10 +500,10 @@ pub async fn kill_process(target: String) -> JResult<String> {
     if let Ok(pid) = target.parse::<u32>() {
         let p = sys
             .process(sysinfo::Pid::from_u32(pid))
-            .ok_or_else(|| AriaError::msg(format!("no process with pid {pid}")))?;
+            .ok_or_else(|| NovaError::msg(format!("no process with pid {pid}")))?;
         let name = p.name().to_string_lossy().to_string();
         if !p.kill() {
-            return Err(AriaError::msg(format!("could not kill pid {pid}")));
+            return Err(NovaError::msg(format!("could not kill pid {pid}")));
         }
         return Ok(format!("killed {name} ({pid})"));
     }
@@ -517,7 +517,7 @@ pub async fn kill_process(target: String) -> JResult<String> {
     }
 
     if killed.is_empty() {
-        return Err(AriaError::msg(format!("no process matching `{target}`")));
+        return Err(NovaError::msg(format!("no process matching `{target}`")));
     }
     Ok(format!("killed {}", killed.join(", ")))
 }

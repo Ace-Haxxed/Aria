@@ -1,9 +1,9 @@
 {
-  "name": "aria",
+  "name": "nova",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "ARIA \u2014 Adaptive Reasoning and Intelligence Assistant",
+  "description": "NOVA \u2014 Neural Operative Virtual Assistant",
   "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",

@@ -1,5 +1,5 @@
 /**
- * The one-time download that makes ARIA work offline.
+ * The one-time download that makes NOVA work offline.
  *
  * Shown before anything else on first launch. It is the only point in the app
  * where the user genuinely has to wait, so it says plainly what is happening,
@@ -90,7 +90,7 @@ export function ModelDownload({ onReady, onSkip }: ModelDownloadProps) {
   const resumable = (current?.downloadedBytes ?? 0) > 0 && !downloading;
 
   return (
-    <div className="aria-grid-bg fixed inset-0 z-50 flex items-center justify-center bg-background p-6">
+    <div className="nova-grid-bg fixed inset-0 z-50 flex items-center justify-center bg-background p-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -100,9 +100,9 @@ export function ModelDownload({ onReady, onSkip }: ModelDownloadProps) {
         <Card className="space-y-5 p-6">
           <div className="space-y-2 text-center">
             <div className="text-3xl">🤖</div>
-            <h1 className="text-lg font-semibold tracking-tight">Setting up ARIA AI</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Setting up NOVA AI</h1>
             <p className="text-sm text-muted-foreground">
-              {downloading ? 'Downloading your personal AI model…' : 'One download and ARIA works on its own.'}
+              {downloading ? 'Downloading your personal AI model…' : 'One download and NOVA works on its own.'}
             </p>
           </div>
 
@@ -206,7 +206,7 @@ export function ModelDownload({ onReady, onSkip }: ModelDownloadProps) {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 text-xs font-medium">
                             {model.name}
-                            {model.installed && <Check className="h-3 w-3 text-aria-acting" />}
+                            {model.installed && <Check className="h-3 w-3 text-nova-acting" />}
                           </div>
                           <div className="truncate text-[11px] text-muted-foreground">
                             {model.description}
@@ -255,7 +255,7 @@ function formatEta(seconds: number): string {
 /** A spinner for the moment between "download finished" and "model loaded". */
 export function ModelLoading({ name }: { name: string }) {
   return (
-    <div className="aria-grid-bg fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <div className="nova-grid-bg fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin text-primary" />
         Loading {name}…

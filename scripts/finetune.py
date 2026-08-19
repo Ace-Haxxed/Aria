@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""LoRA fine-tuning for ARIA, run as a sidecar process.
+"""LoRA fine-tuning for NOVA, run as a sidecar process.
 
-Training is the one part of ARIA that is not Rust. There is no LoRA trainer
+Training is the one part of NOVA that is not Rust. There is no LoRA trainer
 for quantised models in the Rust ecosystem — llama.cpp removed its finetune
 example and candle has no training path for quantised weights — so this calls
 the Python stack that does, and reports back over stdout.
@@ -122,7 +122,7 @@ def install_dependencies(want_unsloth: bool) -> bool:
 
 
 def load_pairs(path: str) -> list[dict]:
-    """Read the conversation pairs ARIA has been collecting.
+    """Read the conversation pairs NOVA has been collecting.
 
     Only rated-good and unrated pairs are used. A thumbs-down is the user
     saying "not like that", so training on it would teach exactly the wrong
@@ -424,7 +424,7 @@ def report_readiness(data_path: str | None) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="LoRA fine-tuning for ARIA")
+    parser = argparse.ArgumentParser(description="LoRA fine-tuning for NOVA")
     parser.add_argument("--data", help="conversations.jsonl to train on")
     parser.add_argument("--output", help="directory to write the adapter to")
     parser.add_argument(
@@ -466,5 +466,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except BrokenPipeError:
-        # ARIA stopped reading — it cancelled. Not an error.
+        # NOVA stopped reading — it cancelled. Not an error.
         sys.exit(0)

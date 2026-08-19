@@ -41,7 +41,7 @@ export function VoiceInput({
   onCancel,
   level = 0,
   lastUserMessage,
-  placeholder = 'Ask ARIA anything…',
+  placeholder = 'Ask NOVA…',
   className,
 }: VoiceInputProps) {
   const [value, setValue] = useState('');
@@ -143,7 +143,7 @@ export function VoiceInput({
       }
 
       // A non-image is a file to work on rather than to look at, so the path
-      // goes into the prompt and ARIA's file tools take it from there.
+      // goes into the prompt and NOVA's file tools take it from there.
       const path = (file as File & { path?: string }).path;
       if (isTauri && path) {
         setValue((v) => (v ? `${v} ${path}` : path));
@@ -190,13 +190,13 @@ export function VoiceInput({
           // Focus lights the edge rather than moving anything: the composer is
           // the one element always on screen, and a shifting outline there is
           // visible in peripheral vision the whole time you are typing.
-          focused && 'aria-composer-focused',
+          focused && 'nova-composer-focused',
         )}
         style={{
           background: 'var(--bg-surface)',
-          backdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(24px)',
           border: `1px solid ${dragging || focused ? 'var(--border-glow)' : 'var(--border-subtle)'}`,
-          borderRadius: 24,
+          borderRadius: 20,
         }}
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={() => setFocused(false)}
@@ -225,7 +225,7 @@ export function VoiceInput({
               className={cn(
                 'h-9 w-9 shrink-0 touch-none rounded-full',
                 listening
-                  ? 'bg-aria-listening text-white hover:bg-aria-listening/90'
+                  ? 'bg-nova-listening text-white hover:bg-nova-listening/90'
                   : 'text-muted-foreground hover:text-foreground',
               )}
               aria-label={listening ? 'Stop listening' : 'Start listening'}
@@ -280,7 +280,7 @@ export function VoiceInput({
             onDrop={(e) => void handleDrop(e)}
             rows={1}
             placeholder={listening ? 'Listening…' : placeholder}
-            className="aria-scroll aria-composer-input w-full resize-none bg-transparent px-2
+            className="nova-scroll nova-composer-input w-full resize-none bg-transparent px-2
               py-2 text-sm focus-visible:outline-none"
           />
         </div>

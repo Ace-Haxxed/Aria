@@ -27,9 +27,9 @@ export interface ModelLimits {
   requestsPerDay?: number;
   /** Shown in the picker to explain the trade. */
   note?: string;
-  /** The one ARIA recommends on a free plan. */
+  /** The one NOVA recommends on a free plan. */
   recommendedFree?: boolean;
-  /** The one ARIA recommends when quota is not a concern. */
+  /** The one NOVA recommends when quota is not a concern. */
   recommendedPaid?: boolean;
 }
 
@@ -39,7 +39,7 @@ export interface ModelLimits {
  * Groq retired the entire Llama line, so the per-model free-tier figures that
  * used to be quoted here no longer describe anything they serve. Rather than
  * carry numbers that may be wrong, only the context window is stated — it is
- * the one figure ARIA actually needs, for trimming history before a request.
+ * the one figure NOVA actually needs, for trimming history before a request.
  */
 export const GROQ_MODELS: ModelLimits[] = [
   {
@@ -133,7 +133,7 @@ const GEMINI_MODELS: ModelLimits[] = [
 
 /**
  * OpenRouter proxies models from every provider, so its catalogue is theirs.
- * Only the handful ARIA offers by default are listed; anything else the user
+ * Only the handful NOVA offers by default are listed; anything else the user
  * types falls back to the conservative default, which is the safe direction.
  */
 const OPENROUTER_MODELS: ModelLimits[] = [

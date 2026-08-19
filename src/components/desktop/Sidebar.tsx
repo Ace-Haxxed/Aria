@@ -83,7 +83,7 @@ export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) 
         background: 'hsl(222 71% 5% / 0.6)',
         backdropFilter: 'blur(10px)',
         borderRight: collapsed ? 'none' : '1px solid var(--border-subtle)',
-        transitionTimingFunction: 'var(--aria-ease)',
+        transitionTimingFunction: 'var(--nova-ease)',
       }}
     >
       {/* Held at full width while collapsing so the contents slide out as a
@@ -149,7 +149,7 @@ export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) 
       </button>
 
       {historyOpen && (
-        <ScrollArea className="aria-scroll flex-1">
+        <ScrollArea className="nova-scroll flex-1">
           <div className="space-y-0.5 p-2">
             {recent.length === 0 && (
               <p className="px-2 py-4 text-xs text-muted-foreground">

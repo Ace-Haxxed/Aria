@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useActions } from '@/store/actions';
 
 /**
- * Floating thumbnail of the last screenshot ARIA took, so the user can see
+ * Floating thumbnail of the last screenshot NOVA took, so the user can see
  * exactly what it saw when it decided where to click.
  */
 export function ScreenPreview() {
@@ -21,7 +21,7 @@ export function ScreenPreview() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-          className="aria-panel absolute bottom-4 left-4 z-20 overflow-hidden rounded-xl shadow-2xl"
+          className="nova-panel absolute bottom-4 left-4 z-20 overflow-hidden rounded-xl shadow-2xl"
           style={{ width: expanded ? 520 : 220 }}
         >
           <div className="flex items-center justify-between border-b border-border/60 px-2.5 py-1.5">
@@ -52,7 +52,7 @@ export function ScreenPreview() {
             </div>
           </div>
 
-          <img src={screenshot} alt="Last screenshot ARIA captured" className="block w-full" />
+          <img src={screenshot} alt="Last screenshot NOVA captured" className="block w-full" />
         </motion.div>
       )}
     </AnimatePresence>

@@ -8,7 +8,7 @@
 //! The process is detached from the request that started it: training takes
 //! minutes to an hour, and the app stays usable throughout.
 
-use crate::util::{JResult, AriaError};
+use crate::util::{JResult, NovaError};
 use serde::Serialize;
 use serde_json::Value;
 use std::process::Stdio;
@@ -63,8 +63,8 @@ fn script_path() -> JResult<std::path::PathBuf> {
         }
     }
 
-    Err(AriaError::msg(
-        "The training script is missing from this installation. Reinstall ARIA, or run it from a source checkout.",
+    Err(NovaError::msg(
+        "The training script is missing from this installation. Reinstall NOVA, or run it from a source checkout.",
     ))
 }
 
@@ -153,7 +153,7 @@ pub async fn check_finetune_support() -> JResult<TrainingReadiness> {
             pairs: 0,
             estimated_minutes: 0,
             problem: Some(
-                "Python 3 is not installed. Fine-tuning needs it; everything else in ARIA works without it."
+                "Python 3 is not installed. Fine-tuning needs it; everything else in NOVA works without it."
                     .into(),
             ),
         });
@@ -269,13 +269,13 @@ pub async fn start_finetuning(
     auto_install: Option<bool>,
 ) -> JResult<String> {
     if RUNNING_PID.load(Ordering::Relaxed) != 0 {
-        return Err(AriaError::msg("A fine-tune is already running."));
+        return Err(NovaError::msg("A fine-tune is already running."));
     }
 
     let script = script_path()?;
     let data = super::training::dataset_path()?;
     if !data.exists() {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "There are no saved conversations to train on yet. Turn on training capture in Settings → Privacy.",
         ));
     }
@@ -286,7 +286,7 @@ pub async fn start_finetuning(
         .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
         .collect();
     let safe = if safe.trim_matches('-').is_empty() {
-        format!("my-aria-{}", chrono::Utc::now().format("%Y%m%d"))
+        format!("my-nova-{}", chrono::Utc::now().format("%Y%m%d"))
     } else {
         safe
     };
@@ -319,8 +319,8 @@ pub async fn start_finetuning(
     command.env("PYTHONUNBUFFERED", "1");
 
     let mut child = command.spawn().map_err(|e| {
-        AriaError::msg(format!(
-            "Python could not be started ({e}). Fine-tuning needs Python 3; the rest of ARIA does not."
+        NovaError::msg(format!(
+            "Python could not be started ({e}). Fine-tuning needs Python 3; the rest of NOVA does not."
         ))
     })?;
 
@@ -407,11 +407,11 @@ pub async fn delete_adapter(name: String) -> JResult<()> {
     let base = adapters_dir()?.canonicalize()?;
     let target = path.canonicalize()?;
     if !target.starts_with(&base) {
-        return Err(AriaError::msg("That is not a ARIA adapter."));
+        return Err(NovaError::msg("That is not a NOVA adapter."));
     }
 
     trash::delete(&target)
-        .map_err(|e| AriaError::msg(format!("Could not remove the model: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("Could not remove the model: {e}")))?;
     Ok(())
 }
 

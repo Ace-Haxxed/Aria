@@ -33,7 +33,7 @@ function CodeBlock({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="group relative my-2">
-      <pre className="aria-scroll overflow-x-auto rounded-lg border border-border/60 bg-background/80 p-3">
+      <pre className="nova-scroll overflow-x-auto rounded-lg border border-border/60 bg-background/80 p-3">
         {children}
       </pre>
       <button
@@ -44,7 +44,7 @@ function CodeBlock({ children }: { children: React.ReactNode }) {
           focus-visible:opacity-100 group-hover:opacity-100 active:scale-95"
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-aria-acting" />
+          <Check className="h-3.5 w-3.5 text-nova-acting" />
         ) : (
           <Copy className="h-3.5 w-3.5" />
         )}
@@ -65,7 +65,7 @@ function extractText(node: React.ReactNode): string {
 
 function MarkdownComponent({ children, className }: MarkdownProps) {
   return (
-    <div className={cn('aria-markdown', className)}>
+    <div className={cn('nova-markdown', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         // `detect` guesses the language when the model omits the fence info
@@ -91,7 +91,7 @@ function MarkdownComponent({ children, className }: MarkdownProps) {
             </a>
           ),
           table: ({ children }) => (
-            <div className="aria-scroll my-2 overflow-x-auto">
+            <div className="nova-scroll my-2 overflow-x-auto">
               <table className="w-full border-collapse text-xs">{children}</table>
             </div>
           ),

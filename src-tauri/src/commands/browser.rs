@@ -11,7 +11,7 @@
 //! DOM-level commands report what is missing instead of failing silently.
 
 use crate::state::AppState;
-use crate::util::{expand_path, first_available, spawn_detached, JResult, AriaError};
+use crate::util::{expand_path, first_available, spawn_detached, JResult, NovaError};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -50,8 +50,8 @@ fn http() -> reqwest::Client {
 async fn targets() -> JResult<Vec<Value>> {
     let url = format!("http://127.0.0.1:{DEBUG_PORT}/json/list");
     let resp = http().get(&url).send().await.map_err(|_| {
-        AriaError::msg(
-            "No browser is listening on the DevTools port. Ask ARIA to open a URL first, \
+        NovaError::msg(
+            "No browser is listening on the DevTools port. Ask NOVA to open a URL first, \
              or start your browser with --remote-debugging-port=9222.",
         )
     })?;
@@ -59,7 +59,7 @@ async fn targets() -> JResult<Vec<Value>> {
     let list: Value = resp
         .json()
         .await
-        .map_err(|e| AriaError::msg(format!("could not read the target list: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not read the target list: {e}")))?;
 
     Ok(list
         .as_array()
@@ -77,7 +77,7 @@ async fn active_target() -> JResult<Value> {
         .await?
         .into_iter()
         .next()
-        .ok_or_else(|| AriaError::msg("the browser has no open tabs"))
+        .ok_or_else(|| NovaError::msg("the browser has no open tabs"))
 }
 
 /// Send one CDP command and return its `result` payload.
@@ -91,8 +91,8 @@ async fn cdp(ws_url: &str, method: &str, params: Value) -> JResult<Value> {
         tokio_tungstenite::connect_async(ws_url),
     )
     .await
-    .map_err(|_| AriaError::msg("timed out connecting to the browser"))?
-    .map_err(|e| AriaError::msg(format!("could not connect to the browser: {e}")))?;
+    .map_err(|_| NovaError::msg("timed out connecting to the browser"))?
+    .map_err(|e| NovaError::msg(format!("could not connect to the browser: {e}")))?;
 
     let id = 1u64;
     let request = json!({ "id": id, "method": method, "params": params });
@@ -102,20 +102,20 @@ async fn cdp(ws_url: &str, method: &str, params: Value) -> JResult<Value> {
             request.to_string(),
         ))
         .await
-        .map_err(|e| AriaError::msg(format!("could not send to the browser: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not send to the browser: {e}")))?;
 
     let deadline = tokio::time::Instant::now() + CDP_TIMEOUT;
     loop {
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
         if remaining.is_zero() {
-            return Err(AriaError::msg(format!("`{method}` timed out")));
+            return Err(NovaError::msg(format!("`{method}` timed out")));
         }
 
         let msg = match tokio::time::timeout(remaining, socket.next()).await {
-            Err(_) => return Err(AriaError::msg(format!("`{method}` timed out"))),
-            Ok(None) => return Err(AriaError::msg("the browser closed the connection")),
+            Err(_) => return Err(NovaError::msg(format!("`{method}` timed out"))),
+            Ok(None) => return Err(NovaError::msg("the browser closed the connection")),
             Ok(Some(Err(e))) => {
-                return Err(AriaError::msg(format!("browser connection error: {e}")))
+                return Err(NovaError::msg(format!("browser connection error: {e}")))
             }
             Ok(Some(Ok(m))) => m,
         };
@@ -132,7 +132,7 @@ async fn cdp(ws_url: &str, method: &str, params: Value) -> JResult<Value> {
             continue;
         }
         if let Some(err) = value.get("error") {
-            return Err(AriaError::msg(format!(
+            return Err(NovaError::msg(format!(
                 "browser rejected `{method}`: {}",
                 err["message"].as_str().unwrap_or("unknown error")
             )));
@@ -146,7 +146,7 @@ async fn eval(expression: &str) -> JResult<Value> {
     let target = active_target().await?;
     let ws = target["webSocketDebuggerUrl"]
         .as_str()
-        .ok_or_else(|| AriaError::msg("tab is not debuggable"))?;
+        .ok_or_else(|| NovaError::msg("tab is not debuggable"))?;
 
     let result = cdp(
         ws,
@@ -165,7 +165,7 @@ async fn eval(expression: &str) -> JResult<Value> {
             .as_str()
             .or_else(|| details["text"].as_str())
             .unwrap_or("script error");
-        return Err(AriaError::msg(format!("page script failed: {text}")));
+        return Err(NovaError::msg(format!("page script failed: {text}")));
     }
     Ok(result["result"]["value"].clone())
 }
@@ -226,7 +226,7 @@ async fn ensure_browser(state: &AppState, url: Option<&str>) -> JResult<()> {
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "the browser started but never opened its DevTools port",
         ));
     }
@@ -235,15 +235,15 @@ async fn ensure_browser(state: &AppState, url: Option<&str>) -> JResult<()> {
     if crate::util::has("firefox") {
         if let Some(u) = url {
             spawn_detached("firefox", &[u])?;
-            return Err(AriaError::msg(
+            return Err(NovaError::msg(
                 "Opened the page in Firefox. Firefox 129+ no longer implements the DevTools \
-                 protocol, so ARIA cannot read or click page content there. Install Chromium \
+                 protocol, so NOVA cannot read or click page content there. Install Chromium \
                  for full browser control.",
             ));
         }
     }
 
-    Err(AriaError::missing(
+    Err(NovaError::missing(
         "chromium",
         "Browser automation needs a Chromium-family browser (chromium, chrome, brave or edge).",
     ))
@@ -256,7 +256,7 @@ pub async fn open_url(state: State<'_, AppState>, url: String) -> JResult<String
     // Reject anything that isn't http(s) — `file://` and `javascript:` would
     // turn a browser tool into arbitrary local file access.
     if !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "only http:// and https:// URLs can be opened",
         ));
     }
@@ -266,7 +266,7 @@ pub async fn open_url(state: State<'_, AppState>, url: String) -> JResult<String
     let target = active_target().await?;
     let ws = target["webSocketDebuggerUrl"]
         .as_str()
-        .ok_or_else(|| AriaError::msg("tab is not debuggable"))?;
+        .ok_or_else(|| NovaError::msg("tab is not debuggable"))?;
     cdp(ws, "Page.navigate", json!({ "url": url })).await?;
 
     // Give the document a moment to commit so a follow-up read sees the new page.
@@ -297,12 +297,12 @@ pub async fn take_page_screenshot() -> JResult<String> {
     let target = active_target().await?;
     let ws = target["webSocketDebuggerUrl"]
         .as_str()
-        .ok_or_else(|| AriaError::msg("tab is not debuggable"))?;
+        .ok_or_else(|| NovaError::msg("tab is not debuggable"))?;
 
     let result = cdp(ws, "Page.captureScreenshot", json!({ "format": "png" })).await?;
     let data = result["data"]
         .as_str()
-        .ok_or_else(|| AriaError::msg("the browser returned no image data"))?;
+        .ok_or_else(|| NovaError::msg("the browser returned no image data"))?;
     Ok(format!("data:image/png;base64,{data}"))
 }
 
@@ -347,7 +347,7 @@ pub async fn click_element(selector: String) -> JResult<String> {
 
     match as_text(eval(&js).await?).as_str() {
         "OK" => Ok(format!("clicked `{selector}`")),
-        _ => Err(AriaError::msg(format!(
+        _ => Err(NovaError::msg(format!(
             "no element matching `{selector}` on this page"
         ))),
     }
@@ -380,7 +380,7 @@ pub async fn type_in_element(selector: String, text: String) -> JResult<String> 
 
     match as_text(eval(&js).await?).as_str() {
         "OK" => Ok(format!("typed into `{selector}`")),
-        _ => Err(AriaError::msg(format!(
+        _ => Err(NovaError::msg(format!(
             "no element matching `{selector}` on this page"
         ))),
     }
@@ -413,7 +413,7 @@ pub async fn reload_page() -> JResult<String> {
     let target = active_target().await?;
     let ws = target["webSocketDebuggerUrl"]
         .as_str()
-        .ok_or_else(|| AriaError::msg("tab is not debuggable"))?;
+        .ok_or_else(|| NovaError::msg("tab is not debuggable"))?;
     cdp(ws, "Page.reload", json!({})).await?;
     tokio::time::sleep(Duration::from_millis(700)).await;
     Ok("reloaded".into())
@@ -431,12 +431,12 @@ pub async fn new_tab(state: State<'_, AppState>, url: Option<String>) -> JResult
         ))
         .send()
         .await
-        .map_err(|e| AriaError::msg(format!("could not open a tab: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not open a tab: {e}")))?;
 
     let tab: Value = resp
         .json()
         .await
-        .map_err(|e| AriaError::msg(format!("could not read the new tab: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not read the new tab: {e}")))?;
     Ok(format!(
         "opened tab {}",
         tab["id"].as_str().unwrap_or_default()
@@ -469,7 +469,7 @@ pub async fn close_tab(id: Option<String>) -> JResult<String> {
         .get(format!("http://127.0.0.1:{DEBUG_PORT}/json/close/{tab_id}"))
         .send()
         .await
-        .map_err(|e| AriaError::msg(format!("could not close the tab: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not close the tab: {e}")))?;
     Ok("closed tab".into())
 }
 
@@ -491,14 +491,14 @@ pub async fn switch_tab(index: usize) -> JResult<String> {
     let tabs = targets().await?;
     let tab = tabs
         .get(index)
-        .ok_or_else(|| AriaError::msg(format!("no tab at index {index}")))?;
+        .ok_or_else(|| NovaError::msg(format!("no tab at index {index}")))?;
     let id = tab["id"].as_str().unwrap_or_default();
 
     http()
         .get(format!("http://127.0.0.1:{DEBUG_PORT}/json/activate/{id}"))
         .send()
         .await
-        .map_err(|e| AriaError::msg(format!("could not switch tabs: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("could not switch tabs: {e}")))?;
     Ok(format!(
         "switched to `{}`",
         tab["title"].as_str().unwrap_or_default()
@@ -516,7 +516,7 @@ pub async fn wait_for_element(selector: String, timeout: Option<u64>) -> JResult
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
-    Err(AriaError::msg(format!(
+    Err(NovaError::msg(format!(
         "`{selector}` did not appear within the timeout"
     )))
 }
@@ -548,7 +548,7 @@ pub async fn fill_form(fields: Vec<FormField>) -> JResult<String> {
 #[tauri::command]
 pub async fn download_file(url: String, dest: String) -> JResult<String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err(AriaError::msg(
+        return Err(NovaError::msg(
             "only http:// and https:// URLs can be downloaded",
         ));
     }
@@ -561,14 +561,14 @@ pub async fn download_file(url: String, dest: String) -> JResult<String> {
     let resp = reqwest::Client::builder()
         .timeout(Duration::from_secs(300))
         .build()
-        .map_err(|e| AriaError::msg(e.to_string()))?
+        .map_err(|e| NovaError::msg(e.to_string()))?
         .get(&url)
         .send()
         .await
-        .map_err(|e| AriaError::msg(format!("download failed: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("download failed: {e}")))?;
 
     if !resp.status().is_success() {
-        return Err(AriaError::msg(format!(
+        return Err(NovaError::msg(format!(
             "download failed: HTTP {}",
             resp.status()
         )));
@@ -577,7 +577,7 @@ pub async fn download_file(url: String, dest: String) -> JResult<String> {
     let bytes = resp
         .bytes()
         .await
-        .map_err(|e| AriaError::msg(format!("download failed: {e}")))?;
+        .map_err(|e| NovaError::msg(format!("download failed: {e}")))?;
     std::fs::write(&path, &bytes)?;
 
     Ok(format!(

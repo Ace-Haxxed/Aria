@@ -71,11 +71,11 @@ interface StreamStart {
  * user is shown "Groq did not accept that API key…" rather than a status code.
  */
 export interface ExplainedResponse extends Response {
-  ariaError?: string;
+  novaError?: string;
   /** Set when the provider rate-limited us and named a delay. */
-  ariaRetryAfter?: number;
+  novaRetryAfter?: number;
   /** Set when the request was refused for exceeding the context window. */
-  ariaTooLarge?: boolean;
+  novaTooLarge?: boolean;
 }
 
 const COMMANDS: Record<Exclude<TransportProvider, 'builtin'>, string> = {
@@ -199,8 +199,8 @@ export async function streamProvider(params: ProviderStreamParams): Promise<Expl
     );
     // Both conditions are recoverable without the user acting, so they are
     // carried through rather than being flattened into an error string.
-    if (start.retryAfter != null) response.ariaRetryAfter = start.retryAfter;
-    if (start.tooLarge) response.ariaTooLarge = true;
+    if (start.retryAfter != null) response.novaRetryAfter = start.retryAfter;
+    if (start.tooLarge) response.novaTooLarge = true;
     return response;
   }
 
@@ -310,7 +310,7 @@ async function streamBuiltin(params: ProviderStreamParams): Promise<ExplainedRes
 }
 
 function explained(response: Response, message: string): ExplainedResponse {
-  return Object.assign(response as ExplainedResponse, { ariaError: message });
+  return Object.assign(response as ExplainedResponse, { novaError: message });
 }
 
 /**

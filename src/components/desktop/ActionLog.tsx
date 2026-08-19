@@ -42,7 +42,7 @@ export function ActionLog() {
 
     const link = document.createElement('a');
     link.href = url;
-    link.download = `aria-actions-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `nova-actions-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     // Revoking immediately can cancel the download in some engines.
     setTimeout(() => URL.revokeObjectURL(url), 4000);
@@ -75,7 +75,7 @@ export function ActionLog() {
         </Button>
       </div>
 
-      <ScrollArea className="aria-scroll flex-1">
+      <ScrollArea className="nova-scroll flex-1">
         <div className="space-y-2 px-3 pb-3">
           <AnimatePresence initial={false}>
             {entries.map((entry) => (
@@ -178,7 +178,7 @@ function LogEntry({ entry, onUndo }: { entry: ActionLogEntry; onUndo: () => void
                                 className="mt-2 h-6 gap-1 px-2 text-[10px]"
                                 onClick={() =>
                                   window.dispatchEvent(
-                                    new CustomEvent('aria:retry-action', { detail: entry }),
+                                    new CustomEvent('nova:retry-action', { detail: entry }),
                                   )
                                 }
                               >
@@ -201,7 +201,7 @@ function LogEntry({ entry, onUndo }: { entry: ActionLogEntry; onUndo: () => void
                           </div>
 
                           {entry.undone && (
-                            <span className="mt-1 block text-[10px] text-aria-acting">Undone</span>
+                            <span className="mt-1 block text-[10px] text-nova-acting">Undone</span>
                           )}
                         </motion.div>
                       )}

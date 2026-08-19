@@ -106,7 +106,7 @@ export function humanise(e: unknown): string {
     return 'That took too long to respond. Try again in a moment.';
   }
   if (/permission|denied|forbidden/i.test(trimmed)) {
-    return 'ARIA does not have permission for that yet.';
+    return 'NOVA does not have permission for that yet.';
   }
 
   return 'Something went wrong. Please try again.';

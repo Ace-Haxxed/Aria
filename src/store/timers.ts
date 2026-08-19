@@ -62,7 +62,7 @@ export const useTimers = create<TimerState>((set, get) => ({
     };
 
     timer.handle = setTimeout(() => {
-      void notify('ARIA', label);
+      void notify('NOVA', label);
       set((s) => ({ timers: s.timers.filter((t) => t.id !== timer.id) }));
     }, seconds * 1000);
 

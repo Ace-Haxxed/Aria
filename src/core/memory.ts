@@ -9,9 +9,9 @@ import type { Conversation, Message } from './types';
 import { isMobile, isTauri } from '@/platform';
 import { uid } from '@/lib/utils';
 
-const CONV_INDEX_KEY = 'aria.conversations';
-const CONV_PREFIX = 'aria.conversation.';
-const FACTS_KEY = 'aria.facts';
+const CONV_INDEX_KEY = 'nova.conversations';
+const CONV_PREFIX = 'nova.conversation.';
+const FACTS_KEY = 'nova.facts';
 
 async function prefs() {
   const { Preferences } = await import('@capacitor/preferences');
@@ -310,7 +310,7 @@ export function summariseEvicted(evicted: Message[], existing?: string): string 
 
   const lines = evicted
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => `${m.role === 'user' ? 'User' : 'ARIA'}: ${m.content.replace(/\s+/g, ' ').slice(0, 200)}`);
+    .map((m) => `${m.role === 'user' ? 'User' : 'NOVA'}: ${m.content.replace(/\s+/g, ' ').slice(0, 200)}`);
 
   const body = lines.slice(-40).join('\n');
   return existing ? `${existing}\n${body}` : body;

@@ -1,5 +1,5 @@
 /**
- * Everything that decides whether talking to ARIA works.
+ * Everything that decides whether talking to NOVA works.
  *
  * The page exists because the failure it diagnoses is invisible: with no
  * whisper binary and no OpenAI key, dictation records happily, transcribes
@@ -124,7 +124,7 @@ export function VoicePage() {
       <section
         className={cn(
           'rounded-xl border px-4 py-3',
-          method === 'offline' && 'border-aria-acting/30 bg-aria-acting/5',
+          method === 'offline' && 'border-nova-acting/30 bg-nova-acting/5',
           method === 'api' && 'border-accent/30 bg-accent/5',
           method === 'none' && 'border-risk-high/30 bg-risk-high/5',
         )}
@@ -133,7 +133,7 @@ export function VoicePage() {
           <span
             className={cn(
               'h-2 w-2 rounded-full',
-              method === 'offline' && 'bg-aria-acting',
+              method === 'offline' && 'bg-nova-acting',
               method === 'api' && 'bg-accent',
               method === 'none' && 'bg-risk-high',
             )}
@@ -291,7 +291,7 @@ export function VoicePage() {
             type="checkbox"
             checked={voice.wakeWordEnabled}
             onChange={(e) => updateVoice({ wakeWordEnabled: e.target.checked })}
-            className="h-4 w-4 accent-[color:var(--cyan-primary,#00d4ff)]"
+            className="h-4 w-4 accent-[color:var(--nova-primary,#63b3ed)]"
           />
         </label>
 
@@ -334,7 +334,7 @@ function Row({
   return (
     <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
       {present ? (
-        <Check className="h-3.5 w-3.5 shrink-0 text-aria-acting" />
+        <Check className="h-3.5 w-3.5 shrink-0 text-nova-acting" />
       ) : (
         <X className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       )}

@@ -1,5 +1,5 @@
 /**
- * Provider credentials, mirrored from `~/.config/aria/keys.json`.
+ * Provider credentials, mirrored from `~/.config/nova/keys.json`.
  *
  * Rust reads the file once during setup and holds it in memory, so this store
  * is filled by a single command call before the first frame renders. Nothing
@@ -127,9 +127,9 @@ const DEFAULTS: Pick<KeyState, 'activeProvider' | 'model' | 'keys' | 'status' | 
 // Capacitor Preferences is the same store `settings.ts` already uses, and the
 // key names match `loadApiKey()` there so both halves see the same value.
 
-const PREF_KEY = (provider: string) => `aria.key.${provider}`;
-const PREF_ACTIVE = 'aria.activeProvider';
-const PREF_MODEL = 'aria.model';
+const PREF_KEY = (provider: string) => `nova.key.${provider}`;
+const PREF_ACTIVE = 'nova.activeProvider';
+const PREF_MODEL = 'nova.model';
 
 async function prefs() {
   const { Preferences } = await import('@capacitor/preferences');

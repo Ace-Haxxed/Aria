@@ -25,7 +25,7 @@ fn live_pass(templates: &[Vec<[f32; 13]>], word: &str, threshold: f32) {
     }
     println!("  GO (2.5s)");
 
-    let samples = match aria_lib::commands::wakeword::probe_record(Duration::from_millis(2_500)) {
+    let samples = match nova_lib::commands::wakeword::probe_record(Duration::from_millis(2_500)) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("recording failed: {e}");
@@ -41,7 +41,7 @@ fn live_pass(templates: &[Vec<[f32; 13]>], word: &str, threshold: f32) {
     let mut start = 0;
     while start + window <= samples.len() {
         let slice = &samples[start..start + window];
-        let d = aria_lib::commands::wakeword::probe_score_frames(templates, slice);
+        let d = nova_lib::commands::wakeword::probe_score_frames(templates, slice);
         if d < best {
             best = d;
             best_at = start as f32 / 16_000.0;
@@ -60,12 +60,12 @@ fn live_pass(templates: &[Vec<[f32; 13]>], word: &str, threshold: f32) {
     println!("firing threshold at sensitivity 7: {threshold:.2}");
     println!(
         "loosest possible threshold (sensitivity 10): {:.2}",
-        aria_lib::commands::wakeword::probe_threshold(10)
+        nova_lib::commands::wakeword::probe_threshold(10)
     );
 
     if best <= threshold {
         println!("\nRESULT: this utterance WOULD fire. The spotter is working.");
-    } else if best <= aria_lib::commands::wakeword::probe_threshold(10) {
+    } else if best <= nova_lib::commands::wakeword::probe_threshold(10) {
         println!("\nRESULT: too far at sensitivity 7, but within reach — raising");
         println!("sensitivity in Settings would make it fire.");
     } else {
@@ -79,14 +79,14 @@ fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     // `--live` scores a spoken utterance against the stored template, which is
     // the question the ambient pass cannot answer: the room not firing proves
-    // no false positives, not that a real "aria" ever clears the threshold.
+    // no false positives, not that a real "nova" ever clears the threshold.
     let live = args.iter().any(|a| a == "--live");
     args.retain(|a| a != "--live");
 
-    let word = args.first().cloned().unwrap_or_else(|| "aria".to_string());
+    let word = args.first().cloned().unwrap_or_else(|| "nova".to_string());
     let seconds: f32 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(6.0);
 
-    let templates = aria_lib::commands::wakeword::probe_templates(&word);
+    let templates = nova_lib::commands::wakeword::probe_templates(&word);
     println!("word: {word:?}");
     println!("templates found: {}", templates.len());
     if templates.is_empty() {
@@ -96,12 +96,12 @@ fn main() {
     }
 
     let sensitivity = 7;
-    let threshold = aria_lib::commands::wakeword::probe_threshold(sensitivity);
+    let threshold = nova_lib::commands::wakeword::probe_threshold(sensitivity);
     println!("sensitivity {sensitivity} -> fires at distance <= {threshold:.2}");
     println!(
         "the full sensitivity range 1-10 spans {:.2} to {:.2}\n",
-        aria_lib::commands::wakeword::probe_threshold(1),
-        aria_lib::commands::wakeword::probe_threshold(10)
+        nova_lib::commands::wakeword::probe_threshold(1),
+        nova_lib::commands::wakeword::probe_threshold(10)
     );
 
     if live {
@@ -111,7 +111,7 @@ fn main() {
 
     println!("recording {seconds:.0}s of whatever the room is doing (say nothing)...");
 
-    let samples = match aria_lib::commands::wakeword::probe_record(Duration::from_secs_f32(seconds))
+    let samples = match nova_lib::commands::wakeword::probe_record(Duration::from_secs_f32(seconds))
     {
         Ok(s) => s,
         Err(e) => {
@@ -120,9 +120,9 @@ fn main() {
         }
     };
 
-    let floor = aria_lib::commands::wakeword::probe_silence_floor();
+    let floor = nova_lib::commands::wakeword::probe_silence_floor();
     let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
-    let peak = aria_lib::commands::wakeword::probe_peak_rms(&samples);
+    let peak = nova_lib::commands::wakeword::probe_peak_rms(&samples);
     println!("captured {} samples", samples.len());
     println!("  mean RMS over the whole take: {rms:.5}");
     println!("  loudest 100ms in it:          {peak:.5}");
@@ -142,13 +142,13 @@ fn main() {
     while start + window <= samples.len() {
         let slice = &samples[start..start + window];
         let wmean = (slice.iter().map(|s| s * s).sum::<f32>() / slice.len() as f32).sqrt();
-        let wpeak = aria_lib::commands::wakeword::probe_peak_rms(slice);
+        let wpeak = nova_lib::commands::wakeword::probe_peak_rms(slice);
         if wpeak >= floor {
             if wmean < floor {
                 // The old gate would have thrown this window away unscored.
                 gated_out_by_mean += 1;
             }
-            let d = aria_lib::commands::wakeword::probe_score_frames(&templates, slice);
+            let d = nova_lib::commands::wakeword::probe_score_frames(&templates, slice);
             scored += 1;
             best = best.min(d);
             let hit = d <= threshold;

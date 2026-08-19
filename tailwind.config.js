@@ -41,13 +41,13 @@ export default {
           foreground: 'hsl(var(--card-foreground))',
         },
         // Orb / agent-state palette — every value resolves from a CSS variable.
-        aria: {
-          idle: 'hsl(var(--aria-idle))',
-          listening: 'hsl(var(--aria-listening))',
-          thinking: 'hsl(var(--aria-thinking))',
-          speaking: 'hsl(var(--aria-speaking))',
-          acting: 'hsl(var(--aria-acting))',
-          grid: 'hsl(var(--aria-grid))',
+        nova: {
+          idle: 'hsl(var(--nova-idle))',
+          listening: 'hsl(var(--nova-listening))',
+          thinking: 'hsl(var(--nova-thinking))',
+          speaking: 'hsl(var(--nova-speaking))',
+          acting: 'hsl(var(--nova-acting))',
+          grid: 'hsl(var(--nova-grid))',
         },
         risk: {
           low: 'hsl(var(--risk-low))',
@@ -83,11 +83,11 @@ export default {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
-        'aria-scan': {
+        'nova-scan': {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100%)' },
         },
-        'aria-flicker': {
+        'nova-flicker': {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.72' },
         },
@@ -95,8 +95,8 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'aria-scan': 'aria-scan 7s linear infinite',
-        'aria-flicker': 'aria-flicker 2.4s ease-in-out infinite',
+        'nova-scan': 'nova-scan 7s linear infinite',
+        'nova-flicker': 'nova-flicker 2.4s ease-in-out infinite',
       },
     },
   },

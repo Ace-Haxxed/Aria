@@ -29,7 +29,7 @@ impl CmdOutput {
 /// Tauri needs command errors to be serialisable; `anyhow::Error` is not, so
 /// everything funnels through here and reaches the frontend as a plain string.
 #[derive(Debug, thiserror::Error)]
-pub enum AriaError {
+pub enum NovaError {
     #[error("{0}")]
     Msg(String),
     #[error("required tool `{tool}` is not installed. {hint}")]
@@ -38,34 +38,34 @@ pub enum AriaError {
     Io(#[from] std::io::Error),
 }
 
-impl AriaError {
+impl NovaError {
     pub fn msg(s: impl Into<String>) -> Self {
-        AriaError::Msg(s.into())
+        NovaError::Msg(s.into())
     }
 
     pub fn missing(tool: &str, hint: &str) -> Self {
-        AriaError::MissingTool {
+        NovaError::MissingTool {
             tool: tool.to_string(),
             hint: hint.to_string(),
         }
     }
 }
 
-impl From<anyhow::Error> for AriaError {
+impl From<anyhow::Error> for NovaError {
     fn from(e: anyhow::Error) -> Self {
-        AriaError::Msg(e.to_string())
+        NovaError::Msg(e.to_string())
     }
 }
 
-impl serde::Serialize for AriaError {
+impl serde::Serialize for NovaError {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(&self.to_string())
     }
 }
 
-pub type JResult<T> = Result<T, AriaError>;
+pub type JResult<T> = Result<T, NovaError>;
 
-/// Default ceiling on any external process ARIA spawns, so a hung helper
+/// Default ceiling on any external process NOVA spawns, so a hung helper
 /// (a `pacman` waiting on a lock, say) can never wedge the agent loop.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -97,16 +97,16 @@ pub async fn run_with_timeout(
 
     let child = cmd.spawn().map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
-            AriaError::missing(program, "See Settings → Setup for install instructions.")
+            NovaError::missing(program, "See Settings → Setup for install instructions.")
         } else {
-            AriaError::Io(e)
+            NovaError::Io(e)
         }
     })?;
 
     let out = match tokio::time::timeout(timeout, child.wait_with_output()).await {
         Ok(r) => r?,
         Err(_) => {
-            return Err(AriaError::msg(format!(
+            return Err(NovaError::msg(format!(
                 "`{program}` timed out after {}s",
                 timeout.as_secs()
             )))
@@ -164,9 +164,9 @@ pub async fn run_with_stdin(program: &str, args: &[String], input: &str) -> JRes
 
     let mut child = cmd.spawn().map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
-            AriaError::missing(program, "See Settings → Voice for install instructions.")
+            NovaError::missing(program, "See Settings → Voice for install instructions.")
         } else {
-            AriaError::Io(e)
+            NovaError::Io(e)
         }
     })?;
 
@@ -179,7 +179,7 @@ pub async fn run_with_stdin(program: &str, args: &[String], input: &str) -> JRes
 
     let out = tokio::time::timeout(DEFAULT_TIMEOUT, child.wait_with_output())
         .await
-        .map_err(|_| AriaError::msg(format!("`{program}` timed out")))??;
+        .map_err(|_| NovaError::msg(format!("`{program}` timed out")))??;
 
     Ok(CmdOutput {
         stdout: String::from_utf8_lossy(&out.stdout).to_string(),
@@ -189,21 +189,21 @@ pub async fn run_with_stdin(program: &str, args: &[String], input: &str) -> JRes
 }
 
 /// Fire-and-forget spawn: used for launching apps and browsers that should
-/// outlive the call and keep running after ARIA returns.
-/// The directory ARIA keeps its data in: models, training data, wake-word
+/// outlive the call and keep running after NOVA returns.
+/// The directory NOVA keeps its data in: models, training data, wake-word
 /// templates.
 ///
-/// New installs use `~/.aria`. An existing `~/.jarvis` is honoured instead,
+/// New installs use `~/.nova`. An existing `~/.jarvis` is honoured instead,
 /// because that directory holds a multi-gigabyte downloaded model and the
 /// recorded wake-word templates — switching paths on an upgrade would strand
 /// all of it and silently re-download the model.
 pub fn data_dir() -> JResult<std::path::PathBuf> {
     let home = dirs::home_dir()
-        .ok_or_else(|| AriaError::msg("ARIA could not locate your home directory."))?;
+        .ok_or_else(|| NovaError::msg("NOVA could not locate your home directory."))?;
 
-    let aria = home.join(".aria");
+    let nova = home.join(".nova");
     let legacy = home.join(".jarvis");
-    let dir = if aria.exists() || !legacy.exists() { aria } else { legacy };
+    let dir = if nova.exists() || !legacy.exists() { nova } else { legacy };
 
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
@@ -233,9 +233,9 @@ pub fn spawn_detached(program: &str, args: &[&str]) -> JResult<u32> {
 
     let child = cmd.spawn().map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
-            AriaError::missing(program, "Check that the application is installed.")
+            NovaError::missing(program, "Check that the application is installed.")
         } else {
-            AriaError::Io(e)
+            NovaError::Io(e)
         }
     })?;
     Ok(child.id())
@@ -302,4 +302,61 @@ pub fn cap_output(s: &str, max: usize) -> String {
         end,
         s.len()
     )
+}
+
+/// Copy application data written under a previous bundle identifier.
+///
+/// Tauri derives the app-data directory from `identifier` in `tauri.conf.json`,
+/// so renaming the app moves it. Everything the user has — settings, the
+/// conversation database, the action log — is suddenly at a path nothing reads,
+/// and the app looks freshly installed.
+///
+/// This copies the newest previous directory across once, on first launch under
+/// the new name. It never overwrites: if the new directory already has content,
+/// the migration has happened (or the user has started fresh deliberately) and
+/// is skipped.
+pub fn adopt_previous_app_data(current: &std::path::Path) {
+    // Already populated: nothing to do, and nothing may be clobbered.
+    if current.read_dir().map(|mut d| d.next().is_some()).unwrap_or(false) {
+        return;
+    }
+
+    let Some(parent) = current.parent() else {
+        return;
+    };
+    // Newest first, so an upgrade from two names back does not lose the more
+    // recent of the two.
+    let previous = ["ai.aria.assistant", "ai.jarvis.assistant"]
+        .iter()
+        .map(|name| parent.join(name))
+        .find(|p| p.is_dir());
+
+    let Some(previous) = previous else {
+        return;
+    };
+    if std::fs::create_dir_all(current).is_err() {
+        return;
+    }
+    let _ = copy_tree(&previous, current);
+}
+
+/// Recursive copy that skips anything it cannot read.
+///
+/// A migration is best-effort by nature: one unreadable file should move the
+/// rest, not abort and leave the user with half a profile and no explanation.
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(from)? {
+        let Ok(entry) = entry else { continue };
+        let target = to.join(entry.file_name());
+        let Ok(kind) = entry.file_type() else { continue };
+
+        if kind.is_dir() {
+            if std::fs::create_dir_all(&target).is_ok() {
+                let _ = copy_tree(&entry.path(), &target);
+            }
+        } else if kind.is_file() && !target.exists() {
+            let _ = std::fs::copy(entry.path(), &target);
+        }
+    }
+    Ok(())
 }

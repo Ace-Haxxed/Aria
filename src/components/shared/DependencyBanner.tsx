@@ -68,7 +68,7 @@ export function DependencyBanner() {
           bg-background/95 p-3.5 shadow-lg backdrop-blur"
       >
         {done ? (
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-aria-acting" />
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-nova-acting" />
         ) : (
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-risk-medium" />
         )}
@@ -76,7 +76,7 @@ export function DependencyBanner() {
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-medium">
             {done
-              ? 'Everything ARIA needs is now installed.'
+              ? 'Everything NOVA needs is now installed.'
               : `${missing.length} required ${missing.length === 1 ? 'tool is' : 'tools are'} missing`}
           </p>
           {!done && (
