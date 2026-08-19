@@ -119,11 +119,22 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
     // information, not a reason to stall the launch.
     const steps: Step[] = [
       {
-        label: 'core',
+        label: 'Neural engine',
         run: async () => 'online',
       },
       {
-        label: 'audio',
+        label: 'Memory systems',
+        run: async () => {
+          // A real answer: the SQLite pool has to have opened for history to
+          // load at all, so this reports what is actually stored rather than
+          // a decorative tick.
+          const { useConversation } = await import('@/store/conversation');
+          const n = useConversation.getState().list.length;
+          return n === 0 ? 'ready' : `ready · ${n} stored`;
+        },
+      },
+      {
+        label: 'Audio',
         run: async () => {
           const { isTauri } = await import('@/platform');
           if (!isTauri) return 'browser';
@@ -133,7 +144,7 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
         },
       },
       {
-        label: 'speech',
+        label: 'STT',
         run: async () => {
           const { isTauri } = await import('@/platform');
           if (!isTauri) return 'browser';
@@ -149,7 +160,7 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
         },
       },
       {
-        label: 'display',
+        label: 'Display',
         run: async () => {
           const { isTauri } = await import('@/platform');
           if (!isTauri) return 'browser';
@@ -159,7 +170,7 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
         },
       },
       {
-        label: 'neural link',
+        label: 'Provider',
         run: async () => {
           // The key config is what the next message will actually use.
           const { useKeys, PROVIDER_LABEL } = await import('@/store/keys');
@@ -169,6 +180,13 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
           // The model id is the half that actually varies between launches.
           const short = model.split('/').pop()?.replace(':free', '') ?? '';
           return short ? `${label} · ${short}`.slice(0, 30) : label;
+        },
+      },
+      {
+        label: 'Tools',
+        run: async () => {
+          const { getTools } = await import('@/platform');
+          return `${(await getTools()).length} armed`;
         },
       },
     ];
@@ -219,8 +237,9 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
         <motion.div
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background"
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden"
+          style={{ background: 'var(--bg-void)' }}
         >
           {/* Scanlines, and a brighter band sweeping down over them. Both are
               pure CSS so they cost nothing and cannot fail to load. */}
@@ -238,9 +257,34 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
           />
 
           <div className="relative w-full max-w-sm px-8">
-            <div className="mb-6 text-center font-mono text-lg tracking-[0.34em] text-primary">
+            {/* The mark lands first, then the name types itself under it. */}
+            <motion.div
+              aria-hidden
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+              className="nova-hex mx-auto mb-5 flex h-11 w-11 items-center justify-center"
+              style={{
+                background:
+                  'linear-gradient(140deg, hsl(var(--accent-h) var(--accent-s) 72%), hsl(var(--accent-h) var(--accent-s) 46%))',
+              }}
+            >
+              <span className="text-[17px] font-bold text-white">N</span>
+            </motion.div>
+
+            <div className="text-center font-mono text-[24px] tracking-[0.34em] text-primary">
               <TypedBrand />
             </div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.6, ease: [0.4, 0, 0.2, 1] }}
+              className="mb-6 mt-2 text-center text-[11px] tracking-[0.28em]"
+              style={{ color: 'var(--text-dim)' }}
+            >
+              NEURAL OPERATIVE VIRTUAL ASSISTANT
+            </motion.div>
 
             <div className="space-y-1.5 font-mono text-[11px]">
               {lines.map((line) => (

@@ -47,8 +47,8 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
     <header
       className="drag-region relative flex h-12 shrink-0 items-center justify-between px-4"
       style={{
-        background: 'hsl(var(--background) / 0.9)',
-        backdropFilter: 'blur(20px)',
+        background: 'hsl(var(--background) / 0.95)',
+        backdropFilter: 'blur(24px)',
         borderBottom: '1px solid var(--border-subtle)',
       }}
     >
@@ -56,14 +56,14 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
           live here and only competed with the clock for attention. */}
       <div className="flex flex-1 items-center gap-2.5">
         <Emblem state={agentState} />
-        <span className="text-[13px] font-semibold uppercase tracking-[0.3em] text-foreground">
+        <span className="text-[14px] font-bold uppercase tracking-[0.3em] text-foreground">
           NOVA
         </span>
       </div>
 
       {/* Centre: the clock. The one readout that is true regardless of state. */}
       <div className="hidden flex-none text-center leading-none sm:block">
-        <div className="font-mono text-[14px] tracking-[0.1em] text-primary">{clock.time}</div>
+        <div className="font-mono text-[13px] tracking-[0.1em] text-primary">{clock.time}</div>
         <div
           className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em]"
           style={{ color: 'var(--text-dim)' }}
@@ -188,11 +188,10 @@ function StatusPill({ agentState, phase }: { agentState: AgentState; phase: stri
 function Emblem({ state }: { state: AgentState }) {
   return (
     <span
-      className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+      className="nova-hex relative flex h-[22px] w-[22px] shrink-0 items-center justify-center"
       style={{
         background:
-          'radial-gradient(circle at 30% 30%, hsl(var(--accent-h) var(--accent-s) 65%), hsl(var(--accent-h) var(--accent-s) 42%))',
-        boxShadow: '0 0 12px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.45)',
+          'linear-gradient(140deg, hsl(var(--accent-h) var(--accent-s) 72%), hsl(var(--accent-h) var(--accent-s) 46%))',
       }}
     >
       {/* A ring that only appears while something is happening, so the mark
@@ -200,13 +199,14 @@ function Emblem({ state }: { state: AgentState }) {
       {state !== 'idle' && (
         <span
           className={cn(
-            'absolute -inset-[3px] rounded-full border border-current opacity-50',
+            'nova-hex absolute -inset-[3px] opacity-40',
             STATE_TONE[state] ?? 'text-primary',
             'hud-dot-live',
           )}
+          style={{ background: 'currentColor' }}
         />
       )}
-      <span className="relative text-[10px] font-semibold text-[hsl(var(--background))]">A</span>
+      <span className="relative text-[10px] font-bold text-white">N</span>
     </span>
   );
 }

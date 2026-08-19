@@ -77,7 +77,7 @@ export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) 
     <aside
       className={cn(
         'relative flex h-full shrink-0 flex-col overflow-hidden transition-[width] duration-[600ms]',
-        collapsed ? 'w-0' : 'w-[220px]',
+        collapsed ? 'w-0' : 'w-[200px]',
       )}
       style={{
         background: 'hsl(222 71% 5% / 0.6)',
@@ -88,7 +88,7 @@ export function Sidebar({ onQuickAction, collapsed, onCollapse }: SidebarProps) 
     >
       {/* Held at full width while collapsing so the contents slide out as a
           block rather than reflowing to nothing on the way. */}
-      <div className="flex h-full w-[220px] flex-col">
+      <div className="flex h-full w-[200px] flex-col">
       <div className="p-3">
         {/* Outline by default, filling on hover — a solid cyan block here
             outweighs everything else in the panel. */}

@@ -50,7 +50,7 @@ export function ActionLog() {
 
   return (
     <aside
-      className="flex h-full w-[260px] shrink-0 flex-col"
+      className="flex h-full w-[240px] shrink-0 flex-col"
       style={{
         background: 'hsl(222 71% 5% / 0.6)',
         backdropFilter: 'blur(10px)',
