@@ -17,7 +17,7 @@ repositories, each stripped to one target.
 ## Install
 
 ```bash
-git clone https://github.com/Ace-Haxxed/Nova
+git clone https://github.com/Ace-Haxxed/Nova-Arch
 cd Nova
 bash scripts/install-arch.sh     # or install-fedora.sh / install-ubuntu.sh
 npm install
